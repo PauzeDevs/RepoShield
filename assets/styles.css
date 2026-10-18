@@ -111,3 +111,5 @@ main{width:min(calc(100% - 48px),1120px);margin-inline:auto;padding:0}
 
 /* Headline accent follows the ice-blue highlight from Pauze's main site. */
 .gradient-text{-webkit-text-fill-color:var(--mint);color:var(--mint);background:none}
+
+.results-subtitle .report-footnote{display:block;margin-top:8px}
