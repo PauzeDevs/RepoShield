@@ -11,17 +11,17 @@ async function getJson(url,options={}){const r=await fetch(url,{...options,heade
 function isPlaceholder(value){
  const v=String(value||"").trim().toLowerCase();
  if(!v)return true;
- return /^(?:your(?:[-_\\s]|$)|replace(?:[-_\\s]|$)|insert(?:[-_\\s]|$)|example(?:[-_\\s]|$)|sample(?:[-_\\s]|$)|dummy(?:[-_\\s]|$)|fake(?:[-_\\s]|$)|test(?:[-_\\s]|$)|change(?:me|it)(?:[-_\\s]|$)|redacted(?:[-_\\s]|$)|placeholder(?:[-_\\s]|$)|x{4,}(?:[-_\\s]|$)|<|\\$|process\\.env\\b|os\\.(?:getenv|environ)\\b|(?:none|null|undefined)$)/i.test(v);
+ return /^(?:your(?:[-_\s]|$)|replace(?:[-_\s]|$)|insert(?:[-_\s]|$)|example(?:[-_\s]|$)|sample(?:[-_\s]|$)|dummy(?:[-_\s]|$)|fake(?:[-_\s]|$)|test(?:[-_\s]|$)|change(?:me|it)(?:[-_\s]|$)|redacted(?:[-_\s]|$)|placeholder(?:[-_\s]|$)|x{4,}(?:[-_\s]|$)|<|\$|process\.env\b|os\.(?:getenv|environ)\b|(?:none|null|undefined)$)/i.test(v);
 }
 function scanText(text,path,owner,repo,branch,findings){
- const lines=text.split(/\\r?\\n/);
+ const lines=text.split(/\r?\n/);
  lines.forEach((line,index)=>{
   let title="",severity="high",category="Secret",matchedCredential="";
   const githubToken=line.match(/(?:ghp_|github_pat_)[A-Za-z0-9_]{8,}/);
   const slackToken=line.match(/xox[bp]-[A-Za-z0-9-]{8,}/);
   const googleToken=line.match(/AIza[A-Za-z0-9_-]{20,}/);
-  const awsKey=line.match(/\\bAKIA[A-Z0-9]{16}\\b/);
-  const genericAssignment=line.match(/\\b(?:[\\w.-]*password|client_secret|api_key)\\s*[:=]\\s*["']?([^"'\\s,;#}\\]]+)/i);
+  const awsKey=line.match(/\bAKIA[A-Z0-9]{16}\b/);
+  const genericAssignment=line.match(/\b(?:[\w.-]*password|client_secret|api_key)\s*[:=]\s*["']?([^"'\s,;#}\]]+)/i);
   if(githubToken&&!isPlaceholder(githubToken[0])){title="Possible GitHub credential";matchedCredential=githubToken[0]}
   else if(slackToken&&!isPlaceholder(slackToken[0])){title="Possible Slack credential";matchedCredential=slackToken[0]}
   else if(googleToken&&!isPlaceholder(googleToken[0])){title="Possible Google API key";matchedCredential=googleToken[0]}
@@ -30,7 +30,7 @@ function scanText(text,path,owner,repo,branch,findings){
   if(title){
    let evidence=line.slice(0,180);
    if(matchedCredential)evidence=evidence.split(matchedCredential).join("[REDACTED]");
-   evidence=evidence.replace(/(\\b[\\w.-]*(?:password|client_secret|api_key)\\b\\s*[:=]\\s*["']?)[^"'\\s,;#}\\]]+/ig,"$1[REDACTED]");
+   evidence=evidence.replace(/(\b[\w.-]*(?:password|client_secret|api_key)\b\s*[:=]\s*["']?)[^"'\s,;#}\]]+/ig,"$1[REDACTED]");
    findings.push({severity,category,title,description:"This line resembles a credential pattern. It may be a false positive; verify whether the value is real.",file:path,line:index+1,evidence,remediation:"If real, revoke or rotate the credential, remove it from source, and consider cleaning Git history.",source_url:"https://github.com/"+owner+"/"+repo+"/blob/"+encodeURIComponent(branch)+"/"+path.split("/").map(encodeURIComponent).join("/")+"#L"+(index+1)});
   }
   if(path.startsWith(".github/workflows/")&&line.toLowerCase().includes("write-all"))findings.push({severity:"high",category:"Workflow",title:"Broad workflow permissions",description:"Broad write permissions increase the impact of a compromised workflow step.",file:path,line:index+1,evidence:line.slice(0,180),remediation:"Use least-privilege permissions at workflow or job scope."});
