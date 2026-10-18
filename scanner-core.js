@@ -43,7 +43,7 @@
     const lines=String(text).split(/\r?\n/);
     lines.forEach((line,index)=>{
       let title="",severity="high",category="Secret";
-      const privateKey=line.match(/-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/i);
+      const privateKey=line.match(/-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----/i);
       const githubToken=line.match(/(?:ghp_|github_pat_)[A-Za-z0-9_]{8,}/);
       const gitlabToken=line.match(/glpat-[A-Za-z0-9_-]{20,}/);
       const npmToken=line.match(/npm_[A-Za-z0-9]{30,}/);
