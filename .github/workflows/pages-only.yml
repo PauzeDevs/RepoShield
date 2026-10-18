@@ -22,9 +22,13 @@ jobs:
         run: |
           test -s index.html
           test -s browser-scan.js
+          test -s scanner-core.js
+          test -s tests/scanner-core.test.cjs
           test -s assets/styles.css
           test -s assets/shield.svg
           test -s CNAME
           test "$(tr -d '\r\n' < CNAME)" = "reposhield.devs.surf"
           node --check app.js
           node --check browser-scan.js
+          node --check scanner-core.js
+          node --test tests/scanner-core.test.cjs
