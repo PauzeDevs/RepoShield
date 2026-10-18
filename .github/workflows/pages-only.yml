@@ -1,0 +1,41 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.publish.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Check browser scanner
+        run: |
+          test -s index.html
+          test -s app.js
+          test -s browser-scan.js
+          test -s assets/styles.css
+          node --check app.js
+          node --check browser-scan.js
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: .
+      - name: Publish
+        id: publish
+        uses: actions/deploy-pages@v4
