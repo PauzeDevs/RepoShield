@@ -1,4 +1,4 @@
-name: GitHub Pages
+name: Static site checks
 
 on:
   push:
@@ -10,34 +10,21 @@ permissions:
   contents: read
 
 concurrency:
-  group: pages
+  group: reposhield-checks
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  validate:
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.publish.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - name: Check browser scanner
+      - name: Validate GitHub Pages source
         run: |
           test -s index.html
-          test -s app.js
           test -s browser-scan.js
           test -s assets/styles.css
+          test -s assets/shield.svg
+          test -s CNAME
+          test "$(tr -d '\r\n' < CNAME)" = "reposhield.devs.surf"
           node --check app.js
           node --check browser-scan.js
-      - uses: actions/upload-pages-artifact@v4
-        with:
-          path: .
-      - name: Publish
-        id: publish
-        uses: actions/deploy-pages@v4
