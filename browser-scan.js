@@ -8,17 +8,29 @@ function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className
 function message(text,kind=""){status.textContent=text;status.className="status-message"+(kind?" "+kind:"")}
 function validTarget(value){let u;try{u=new URL(value.trim())}catch{throw Error("Enter a valid GitHub repository URL.")}if(u.protocol!=="https:"||u.hostname!=="github.com")throw Error("Only HTTPS GitHub repository URLs are supported.");const p=u.pathname.split("/").filter(Boolean);if(p.length!==2)throw Error("Use https://github.com/owner/repository.");return{owner:p[0],repo:p[1].replace(/\.git$/i,""),url:"https://github.com/"+p[0]+"/"+p[1]}}
 async function getJson(url,options={}){const r=await fetch(url,{...options,headers:{"Accept":"application/vnd.github+json",...(options.headers||{})},cache:"no-store"});if(r.status===404)throw Error("Repository not found or not public.");if(r.status===403||r.status===429)throw Error("An API rate limit was reached. Wait and retry.");if(!r.ok)throw Error("Source service returned HTTP "+r.status+".");return r.json()}
+function isPlaceholder(value){
+ const v=String(value||"").trim().toLowerCase();
+ if(!v)return true;
+ return /^(?:your(?:[-_\\s]|$)|replace(?:[-_\\s]|$)|insert(?:[-_\\s]|$)|example(?:[-_\\s]|$)|sample(?:[-_\\s]|$)|dummy(?:[-_\\s]|$)|fake(?:[-_\\s]|$)|test(?:[-_\\s]|$)|change(?:me|it)(?:[-_\\s]|$)|redacted(?:[-_\\s]|$)|placeholder(?:[-_\\s]|$)|x{4,}(?:[-_\\s]|$)|<|\\$|process\\.env\\b|os\\.(?:getenv|environ)\\b|(?:none|null|undefined)$)/i.test(v);
+}
 function scanText(text,path,owner,repo,branch,findings){
- const lines=text.split(/\r?\n/);
+ const lines=text.split(/\\r?\\n/);
  lines.forEach((line,index)=>{
-  let title="",severity="high",category="Secret";
-  if(line.includes("ghp_")||line.includes("github_pat_"))title="Possible GitHub credential";
-  else if(line.includes("AKIA")&&line.length>20)title="Possible cloud access key";
-  else if(line.includes("xoxb-")||line.includes("xoxp-"))title="Possible Slack credential";
-  else if(line.includes("AIza")&&line.length>30)title="Possible Google API key";
-  else if((line.toLowerCase().includes("password=")||line.toLowerCase().includes("client_secret=")||line.toLowerCase().includes("api_key="))&&line.length>25)title="Possible hard-coded credential";
+  let title="",severity="high",category="Secret",matchedCredential="";
+  const githubToken=line.match(/(?:ghp_|github_pat_)[A-Za-z0-9_]{8,}/);
+  const slackToken=line.match(/xox[bp]-[A-Za-z0-9-]{8,}/);
+  const googleToken=line.match(/AIza[A-Za-z0-9_-]{20,}/);
+  const awsKey=line.match(/\\bAKIA[A-Z0-9]{16}\\b/);
+  const genericAssignment=line.match(/\\b(?:[\\w.-]*password|client_secret|api_key)\\s*[:=]\\s*["']?([^"'\\s,;#}\\]]+)/i);
+  if(githubToken&&!isPlaceholder(githubToken[0])){title="Possible GitHub credential";matchedCredential=githubToken[0]}
+  else if(slackToken&&!isPlaceholder(slackToken[0])){title="Possible Slack credential";matchedCredential=slackToken[0]}
+  else if(googleToken&&!isPlaceholder(googleToken[0])){title="Possible Google API key";matchedCredential=googleToken[0]}
+  else if(awsKey&&!isPlaceholder(awsKey[0])){title="Possible cloud access key";matchedCredential=awsKey[0]}
+  else if(genericAssignment&&line.length>25&&!isPlaceholder(genericAssignment[1])){title="Possible hard-coded credential";matchedCredential=genericAssignment[1]}
   if(title){
-   let evidence=line.slice(0,180).replace(/(ghp_|github_pat_|AKIA|xoxb-|xoxp-|AIza)[A-Za-z0-9_\-]{8,}/g,"[REDACTED]").replace(/(password|client_secret|api_key)(\s*=\s*)[^\s,;]+/ig,"$1$2[REDACTED]");
+   let evidence=line.slice(0,180);
+   if(matchedCredential)evidence=evidence.split(matchedCredential).join("[REDACTED]");
+   evidence=evidence.replace(/(\\b[\\w.-]*(?:password|client_secret|api_key)\\b\\s*[:=]\\s*["']?)[^"'\\s,;#}\\]]+/ig,"$1[REDACTED]");
    findings.push({severity,category,title,description:"This line resembles a credential pattern. It may be a false positive; verify whether the value is real.",file:path,line:index+1,evidence,remediation:"If real, revoke or rotate the credential, remove it from source, and consider cleaning Git history.",source_url:"https://github.com/"+owner+"/"+repo+"/blob/"+encodeURIComponent(branch)+"/"+path.split("/").map(encodeURIComponent).join("/")+"#L"+(index+1)});
   }
   if(path.startsWith(".github/workflows/")&&line.toLowerCase().includes("write-all"))findings.push({severity:"high",category:"Workflow",title:"Broad workflow permissions",description:"Broad write permissions increase the impact of a compromised workflow step.",file:path,line:index+1,evidence:line.slice(0,180),remediation:"Use least-privilege permissions at workflow or job scope."});
