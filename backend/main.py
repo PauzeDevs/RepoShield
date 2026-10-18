@@ -11,6 +11,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
+import xml.etree.ElementTree as ET
 from urllib.parse import quote, urlparse
 from uuid import uuid4
 
@@ -314,7 +315,6 @@ def parse_dependencies(path: str, text: str) -> list[dict[str, str]]:
             except (ImportError, ValueError):
                 pass
         elif basename == "pom.xml":
-            import xml.etree.ElementTree as ET
             root = ET.fromstring(text)
             ns = {"m": "http://maven.apache.org/POM/4.0.0"}
             for item in root.findall(".//m:dependency", ns):
@@ -323,7 +323,7 @@ def parse_dependencies(path: str, text: str) -> list[dict[str, str]]:
                 version = item.findtext("m:version", default="", namespaces=ns).strip()
                 if group and name and VERSION_RE.match(version):
                     deps.append({"name": f"{group}:{name}", "version": version, "ecosystem": "Maven"})
-    except (json.JSONDecodeError, TypeError, ValueError, ET.ParseError if "ET" in locals() else ValueError):
+    except (json.JSONDecodeError, TypeError, ValueError, ET.ParseError):
         return deps
     # Stable de-duplication and sensible per-repository cap.
     seen: set[tuple[str, str, str]] = set()
