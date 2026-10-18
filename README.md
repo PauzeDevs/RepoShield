@@ -84,7 +84,7 @@ The root `Dockerfile` and `railway.toml` configure a container deployment with a
 - Do not configure GitHub access tokens for this public-repository-only version.
 - Do not store private credentials in the repository or frontend.
 
-Once the API is deployed, copy its HTTPS origin into `config.js` as `apiBase`, commit, and allow the Pages workflow to redeploy. Verify `/health`, a known test repository, error handling, CORS, and the workflow result before announcing the scanner as live.
+The API origin is currently configured in `config.js` as `https://reposhield-api-production.up.railway.app`. The API health endpoint has passed a GitHub Actions check. Before the website can publish, enable GitHub Pages in repository Settings → Pages and select **GitHub Actions** as the source. Then verify a full scan against a known public test repository, error handling, CORS, and the deployment result before announcing the scanner as live.
 
 Hosting-provider plans and usage limits may change; check the selected service's billing and usage before keeping a public scanner online.
 
@@ -122,4 +122,4 @@ Scan repositories you own or are authorized to assess. RepoShield does not explo
 
 ## Project status
 
-The repository contains the initial implementation. Do not describe the service as production-ready or deployed until CI passes, the API is deployed, the frontend is configured to reach it, and end-to-end scans have been verified.
+The initial implementation is committed and the API container has deployed. The GitHub Pages publish step still requires Pages to be enabled in repository settings, and a full end-to-end scan has not yet been verified. Do not describe RepoShield as production-ready until those checks pass.
