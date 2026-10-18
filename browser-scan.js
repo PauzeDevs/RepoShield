@@ -18,28 +18,38 @@ function tokenIsPlaceholder(value){
  const suffix=String(value||"").replace(/^(?:ghp_|github_pat_|xox[bp]-|AIza|AKIA)/i,"");
  return isPlaceholder(suffix)||/(?:example|placeholder|dummy|fake|redacted|your(?:token|key|secret)|x{5,})/i.test(suffix);
 }
+function redactEvidence(line){
+ return line.slice(0,180)
+  .replace(/(?:ghp_|github_pat_)[A-Za-z0-9_]{8,}/g,"[REDACTED]")
+  .replace(/xox[bp]-[A-Za-z0-9-]{8,}/g,"[REDACTED]")
+  .replace(/AIza[A-Za-z0-9_-]{20,}/g,"[REDACTED]")
+  .replace(/\bAKIA[A-Z0-9]{16}\b/g,"[REDACTED]")
+  .replace(/(\b[\w.-]*(?:password|passwd|client_secret|api_key|secret_key|access_token)\b\s*[:=]\s*["']?)[^"'\s,;#}\]]+/ig,"$1[REDACTED]");
+}
 function scanText(text,path,owner,repo,branch,findings){
  const lines=text.split(/\r?\n/);
  lines.forEach((line,index)=>{
-  let title="",severity="high",category="Secret",matchedCredential="";
+  let title="",severity="high",category="Secret";
   const githubToken=line.match(/(?:ghp_|github_pat_)[A-Za-z0-9_]{8,}/);
   const slackToken=line.match(/xox[bp]-[A-Za-z0-9-]{8,}/);
   const googleToken=line.match(/AIza[A-Za-z0-9_-]{20,}/);
   const awsKey=line.match(/\bAKIA[A-Z0-9]{16}\b/);
-  const genericAssignment=line.match(/\b(?:[\w.-]*password|client_secret|api_key)\s*[:=]\s*["']?([^"'\s,;#}\]]+)/i);
-  if(githubToken&&!tokenIsPlaceholder(githubToken[0])){title="Possible GitHub credential";matchedCredential=githubToken[0]}
-  else if(slackToken&&!tokenIsPlaceholder(slackToken[0])){title="Possible Slack credential";matchedCredential=slackToken[0]}
-  else if(googleToken&&!tokenIsPlaceholder(googleToken[0])){title="Possible Google API key";matchedCredential=googleToken[0]}
-  else if(awsKey&&!tokenIsPlaceholder(awsKey[0])){title="Possible cloud access key";matchedCredential=awsKey[0]}
-  else if(genericAssignment&&line.length>25&&!isPlaceholder(genericAssignment[1])){title="Possible hard-coded credential";matchedCredential=genericAssignment[1]}
-  if(title){
-   let evidence=line.slice(0,180);
-   if(matchedCredential)evidence=evidence.split(matchedCredential).join("[REDACTED]");
-   evidence=evidence.replace(/(\b[\w.-]*(?:password|client_secret|api_key)\b\s*[:=]\s*["']?)[^"'\s,;#}\]]+/ig,"$1[REDACTED]");
-   findings.push({severity,category,title,description:"This line resembles a credential pattern. It may be a false positive; verify whether the value is real.",file:path,line:index+1,evidence,remediation:"If real, revoke or rotate the credential, remove it from source, and consider cleaning Git history.",source_url:"https://github.com/"+owner+"/"+repo+"/blob/"+encodeURIComponent(branch)+"/"+path.split("/").map(encodeURIComponent).join("/")+"#L"+(index+1)});
-  }
-  if(path.startsWith(".github/workflows/")&&line.toLowerCase().includes("write-all"))findings.push({severity:"high",category:"Workflow",title:"Broad workflow permissions",description:"Broad write permissions increase the impact of a compromised workflow step.",file:path,line:index+1,evidence:line.slice(0,180),remediation:"Use least-privilege permissions at workflow or job scope."});
-  if(path.startsWith(".github/workflows/")&&line.includes("@main"))findings.push({severity:"medium",category:"Workflow",title:"Action uses a moving branch reference",description:"A branch reference can change without a reviewed workflow update.",file:path,line:index+1,evidence:line.slice(0,180),remediation:"Pin third-party actions to a full commit SHA."});
+  const genericAssignment=line.match(/\b(?:[\w.-]*(?:password|passwd)|client_secret|api_key|secret_key|access_token)\s*[:=]\s*["']?([^"'\s,;#}\]]+)/i);
+  if(githubToken&&!tokenIsPlaceholder(githubToken[0]))title="Possible GitHub credential";
+  else if(slackToken&&!tokenIsPlaceholder(slackToken[0]))title="Possible Slack credential";
+  else if(googleToken&&!tokenIsPlaceholder(googleToken[0]))title="Possible Google API key";
+  else if(awsKey&&!tokenIsPlaceholder(awsKey[0]))title="Possible cloud access key";
+  else if(genericAssignment&&line.length>25&&!isPlaceholder(genericAssignment[1]))title="Possible hard-coded credential";
+  if(title)findings.push({severity,category,title,description:"This line resembles a credential pattern. It may be a false positive; verify whether the value is real.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"If real, revoke or rotate the credential, remove it from source, and consider cleaning Git history.",source_url:"https://github.com/"+owner+"/"+repo+"/blob/"+branch.split("/").map(encodeURIComponent).join("/")+"/"+path.split("/").map(encodeURIComponent).join("/")+"#L"+(index+1)});
+  if(path.startsWith(".github/workflows/")&&line.toLowerCase().includes("write-all"))findings.push({severity:"high",category:"Workflow",title:"Broad workflow permissions",description:"Broad write permissions increase the impact of a compromised workflow step.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Use least-privilege permissions at workflow or job scope."});
+  if(path.startsWith(".github/workflows/")&&/@main\b/.test(line))findings.push({severity:"medium",category:"Workflow",title:"Action uses a moving branch reference",description:"A branch reference can change without a reviewed workflow update.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Pin third-party actions to a full commit SHA."});
+  if(!/\.(?:md|txt)$/i.test(path)){
+   let risk="",riskSeverity="medium";
+   if(/(?:curl|wget)\b[^|]{0,240}\|\s*(?:sh|bash|zsh)\b/i.test(line)){risk="Remote script piped directly to a shell";riskSeverity="high"}
+   else if(/powershell(?:\.exe)?\b.{0,100}-(?:enc|encodedcommand)\b/i.test(line)){risk="PowerShell encoded command";riskSeverity="high"}
+   else if(/\beval\s*\(\s*(?:atob|Buffer\.from)\s*\(/i.test(line)){risk="Dynamic execution of encoded content";riskSeverity="high"}
+   else if(/(?:execSync|spawn|child_process)\s*\([^)]{0,180}(?:https?:\/\/|curl\b|wget\b)/i.test(line)){risk="Process execution combined with remote content";riskSeverity="medium"}
+   if(risk)findings.push({severity:riskSeverity,category:"Suspicious code",title:risk,description:"This pattern can be used for unsafe remote-code execution or obfuscation. Inspect surrounding code and confirm its purpose.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Avoid piping remote scripts directly to shells. Verify downloads, pin trusted sources, and remove unnecessary dynamic execution.",source_url:"https://github.com/"+owner+"/"+repo+"/blob/"+branch.split("/").map(encodeURIComponent).join("/")+"/"+path.split("/").map(encodeURIComponent).join("/")+"#L"+(index+1)});
  });
 }
 function parseDeps(path,text){const out=[],base=path.split("/").pop().toLowerCase();const add=(name,version,ecosystem)=>{if(name&&/^\d+\.\d+\.\d+/.test(version))out.push({name,version,ecosystem})};try{if(base==="package-lock.json"){for(const [p,v]of Object.entries(JSON.parse(text).packages||{}))if(p.startsWith("node_modules/")&&v.version)add(p.slice(13),String(v.version),"npm")}else if(base.startsWith("requirements")&&base.endsWith(".txt")){for(const line of text.split(/\r?\n/)){const parts=line.split("==");if(parts.length===2)add(parts[0].trim(),parts[1].trim(),"PyPI")}}}catch{}return out}
