@@ -94,3 +94,15 @@ test("prefixed secret-key assignments such as STRIPE_SECRET_KEY are detected", (
   assert.equal(findings[0].title, "Possible hard-coded credential");
   assert.ok(!findings[0].evidence.includes("actual-secret-value-84721"));
 });
+
+
+test("legacy npm package-lock files are parsed recursively", () => {
+  const lock = JSON.stringify({lockfileVersion:1,dependencies:{
+    "left-pad":{version:"1.3.0",dependencies:{
+      "repeat-string":{version:"1.6.1"}
+    }}
+  }});
+  const found = parseDeps("package-lock.json",lock).map(d => [d.name,d.version,d.ecosystem]);
+  assert.ok(found.some(d => d[0] === "left-pad" && d[1] === "1.3.0" && d[2] === "npm"));
+  assert.ok(found.some(d => d[0] === "repeat-string" && d[1] === "1.6.1" && d[2] === "npm"));
+});
