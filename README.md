@@ -2,7 +2,7 @@
 
 RepoShield by PauzeX Developments is a browser-only GitHub repository security checker hosted on GitHub Pages.
 
-**Live site:** https://pauzedevs.github.io/RepoShield/  
+**Live site:** https://reposhield.devs.surf/  
 **Source:** https://github.com/PauzeDevs/RepoShield
 
 ## What it checks
