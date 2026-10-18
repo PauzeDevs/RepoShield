@@ -102,10 +102,21 @@
     };
     try{
       if(base==="package-lock.json"){
-        for(const [packagePath,pkg] of Object.entries(JSON.parse(text).packages||{})){
+        const parsed=JSON.parse(text);
+        const packages=parsed.packages||{};
+        for(const [packagePath,pkg] of Object.entries(packages)){
           const marker="node_modules/";
           const offset=packagePath.lastIndexOf(marker);
           if(offset>=0&&pkg.version)add(packagePath.slice(offset+marker.length),String(pkg.version),"npm");
+        }
+        if(Object.keys(packages).length===0&&parsed.dependencies){
+          const walk=dependencies=>{
+            for(const [name,pkg] of Object.entries(dependencies||{})){
+              if(pkg&&pkg.version)add(name,String(pkg.version),"npm");
+              if(pkg&&pkg.dependencies)walk(pkg.dependencies);
+            }
+          };
+          walk(parsed.dependencies);
         }
       }else if(base.startsWith("requirements")&&base.endsWith(".txt")){
         for(const line of String(text).split(/\r?\n/)){
