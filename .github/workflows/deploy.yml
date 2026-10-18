@@ -1,0 +1,66 @@
+name: Deploy RepoShield to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate static site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check required files
+        run: |
+          test -s index.html
+          test -s config.js
+          test -s app.js
+          test -s assets/styles.css
+          test -s backend/main.py
+      - name: Validate Python syntax
+        run: python -m py_compile backend/main.py
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check config.js
+      - name: Check frontend references
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          html = Path("index.html").read_text()
+          for asset in ("assets/styles.css", "assets/shield.svg", "config.js", "app.js"):
+              assert Path(asset).is_file(), f"Missing referenced asset: {asset}"
+          assert 'id="scan-form"' in html
+          print("Static site references look good.")
+          PY
+  deploy:
+    name: Publish website
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: .
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
