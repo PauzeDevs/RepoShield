@@ -20,10 +20,15 @@
   function redactEvidence(line){
     return String(line)
       .replace(/(?:ghp_|github_pat_)[A-Za-z0-9_]{8,}/g,"[REDACTED]")
+      .replace(/glpat-[A-Za-z0-9_-]{20,}/g,"[REDACTED]")
+      .replace(/npm_[A-Za-z0-9]{30,}/g,"[REDACTED]")
+      .replace(/sk_live_[A-Za-z0-9]{16,}/g,"[REDACTED]")
+      .replace(/sk-(?:proj-)?[A-Za-z0-9_-]{20,}/g,"[REDACTED]")
       .replace(/xox[bp]-[A-Za-z0-9-]{8,}/g,"[REDACTED]")
       .replace(/AIza[A-Za-z0-9_-]{20,}/g,"[REDACTED]")
       .replace(/\bAKIA[A-Z0-9]{16}\b/g,"[REDACTED]")
-      .replace(/(\b[\w.-]*(?:password|passwd|client_secret|api_key|secret_key|access_token|aws_secret_access_key|aws_session_token)\b\s*[:=]\s*["']?)[^"'\s,;#}\]]+/ig,"$1[REDACTED]")
+      .replace(/(\b[\w.-]*(?:password|passwd|client_secret|api_key|secret_key|access_token|aws_secret_access_key|aws_session_token|stripe_secret_key|private_key)\b\s*[:=]\s*["']?)[^"'\s,;#}\]]+/ig,"$1[REDACTED]")
+      .replace(/(\bBearer\s+)[A-Za-z0-9._~-]{20,}/ig,"$1[REDACTED]")
       .slice(0,180);
   }
 
@@ -38,15 +43,27 @@
     const lines=String(text).split(/\r?\n/);
     lines.forEach((line,index)=>{
       let title="",severity="high",category="Secret";
+      const privateKey=line.match(/-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/i);
       const githubToken=line.match(/(?:ghp_|github_pat_)[A-Za-z0-9_]{8,}/);
+      const gitlabToken=line.match(/glpat-[A-Za-z0-9_-]{20,}/);
+      const npmToken=line.match(/npm_[A-Za-z0-9]{30,}/);
+      const stripeToken=line.match(/sk_live_[A-Za-z0-9]{16,}/);
+      const openAIToken=line.match(/sk-(?:proj-)?[A-Za-z0-9_-]{20,}/);
       const slackToken=line.match(/xox[bp]-[A-Za-z0-9-]{8,}/);
       const googleToken=line.match(/AIza[A-Za-z0-9_-]{20,}/);
       const awsKey=line.match(/\bAKIA[A-Z0-9]{16}\b/);
-      const genericAssignment=line.match(/\b(?:[\w.-]*(?:password|passwd)|client_secret|api_key|secret_key|access_token|aws_secret_access_key|aws_session_token)\s*[:=]\s*["']?([^"'\s,;#}\]]+)/i);
-      if(githubToken&&!tokenIsPlaceholder(githubToken[0]))title="Possible GitHub credential";
+      const bearerToken=line.match(/\bBearer\s+([A-Za-z0-9._~-]{20,})/i);
+      const genericAssignment=line.match(/\b[\w.-]*(?:password|passwd|client_secret|api_key|secret_key|access_token|aws_secret_access_key|aws_session_token|stripe_secret_key|private_key)\s*[:=]\s*["']?([^"'\s,;#}\]]+)/i);
+      if(privateKey){title="Private key material";severity="critical";}
+      else if(githubToken&&!tokenIsPlaceholder(githubToken[0]))title="Possible GitHub credential";
+      else if(gitlabToken&&!tokenIsPlaceholder(gitlabToken[0]))title="Possible GitLab credential";
+      else if(npmToken&&!tokenIsPlaceholder(npmToken[0]))title="Possible npm token";
+      else if(stripeToken&&!tokenIsPlaceholder(stripeToken[0]))title="Possible Stripe secret key";
+      else if(openAIToken&&!tokenIsPlaceholder(openAIToken[0]))title="Possible OpenAI API key";
       else if(slackToken&&!tokenIsPlaceholder(slackToken[0]))title="Possible Slack credential";
       else if(googleToken&&!tokenIsPlaceholder(googleToken[0]))title="Possible Google API key";
       else if(awsKey&&!tokenIsPlaceholder(awsKey[0]))title="Possible cloud access key";
+      else if(bearerToken&&!tokenIsPlaceholder(bearerToken[1]))title="Possible hard-coded bearer token";
       else if(genericAssignment&&line.length>25&&!isPlaceholder(genericAssignment[1]))title="Possible hard-coded credential";
       if(title){
         output.push({
