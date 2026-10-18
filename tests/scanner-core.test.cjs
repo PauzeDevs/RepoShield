@@ -68,3 +68,29 @@ test("risky GitHub workflow patterns include a source link", () => {
 test("source paths are encoded segment by segment", () => {
   assert.equal(sourceUrl("owner","repo","main","src/a b.js",4), "https://github.com/owner/repo/blob/main/src/a%20b.js#L4");
 });
+
+
+test("PEM private key headers are reported as critical", () => {
+  const findings = scanText("-----BEGIN ENCRYPTED PRIVATE KEY-----", "keys/release.pem", "owner", "repo", "main", []);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].title, "Private key material");
+  assert.equal(findings[0].severity, "critical");
+});
+
+test("GitLab and npm tokens are detected and redacted", () => {
+  const gitlab = "glpat-" + "G".repeat(30);
+  const npm = "npm_" + "N".repeat(36);
+  const gitlabFindings = scanText('const token = "' + gitlab + '";', "src/config.js", "owner", "repo", "main", []);
+  const npmFindings = scanText('const token = "' + npm + '";', "src/config.js", "owner", "repo", "main", []);
+  assert.equal(gitlabFindings[0].title, "Possible GitLab credential");
+  assert.ok(!gitlabFindings[0].evidence.includes(gitlab));
+  assert.equal(npmFindings[0].title, "Possible npm token");
+  assert.ok(!npmFindings[0].evidence.includes(npm));
+});
+
+test("prefixed secret-key assignments such as STRIPE_SECRET_KEY are detected", () => {
+  const findings = scanText('const STRIPE_SECRET_KEY = "actual-secret-value-84721";', "src/config.js", "owner", "repo", "main", []);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].title, "Possible hard-coded credential");
+  assert.ok(!findings[0].evidence.includes("actual-secret-value-84721"));
+});
