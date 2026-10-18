@@ -8,52 +8,7 @@ function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className
 function message(text,kind=""){status.textContent=text;status.className="status-message"+(kind?" "+kind:"")}
 function validTarget(value){let u;try{u=new URL(value.trim())}catch{throw Error("Enter a valid GitHub repository URL.")}if(u.protocol!=="https:"||u.hostname!=="github.com")throw Error("Only HTTPS GitHub repository URLs are supported.");const p=u.pathname.split("/").filter(Boolean);if(p.length!==2)throw Error("Use https://github.com/owner/repository.");return{owner:p[0],repo:p[1].replace(/\.git$/i,""),url:"https://github.com/"+p[0]+"/"+p[1]}}
 async function getJson(url,options={}){const r=await fetch(url,{...options,headers:{"Accept":"application/vnd.github+json",...(options.headers||{})},cache:"no-store"});if(r.status===404)throw Error("Repository not found or not public.");if(r.status===403||r.status===429)throw Error("An API rate limit was reached. Wait and retry.");if(!r.ok)throw Error("Source service returned HTTP "+r.status+".");return r.json()}
-function isPlaceholder(value){
- const v=String(value||"").trim().toLowerCase();
- if(!v)return true;
- return /^(?:your(?:[-_\s]|$)|replace(?:[-_\s]|$)|insert(?:[-_\s]|$)|example(?:[-_\s]|$)|sample(?:[-_\s]|$)|dummy(?:[-_\s]|$)|fake(?:[-_\s]|$)|change(?:me|it)(?:[-_\s]|$)|redacted(?:[-_\s]|$)|placeholder(?:[-_\s]|$)|x{4,}(?:[-_\s]|$)|<|\$|process\.env\b|os\.(?:getenv|environ)\b|(?:none|null|undefined)$)/i.test(v) ||
-   /^test(?:[-_\s](?:value|password|key|token|secret|credential)|$)/i.test(v);
-}
-function tokenIsPlaceholder(value){
- const suffix=String(value||"").replace(/^(?:ghp_|github_pat_|xox[bp]-|AIza|AKIA)/i,"");
- return isPlaceholder(suffix)||/(?:example|placeholder|dummy|fake|redacted|your(?:token|key|secret)|x{5,})/i.test(suffix);
-}
-function redactEvidence(line){
- return line.slice(0,180)
-  .replace(/(?:ghp_|github_pat_)[A-Za-z0-9_]{8,}/g,"[REDACTED]")
-  .replace(/xox[bp]-[A-Za-z0-9-]{8,}/g,"[REDACTED]")
-  .replace(/AIza[A-Za-z0-9_-]{20,}/g,"[REDACTED]")
-  .replace(/\bAKIA[A-Z0-9]{16}\b/g,"[REDACTED]")
-  .replace(/(\b[\w.-]*(?:password|passwd|client_secret|api_key|secret_key|access_token)\b\s*[:=]\s*["']?)[^"'\s,;#}\]]+/ig,"$1[REDACTED]");
-}
-function scanText(text,path,owner,repo,branch,findings){
- const lines=text.split(/\r?\n/);
- lines.forEach((line,index)=>{
-  let title="",severity="high",category="Secret";
-  const githubToken=line.match(/(?:ghp_|github_pat_)[A-Za-z0-9_]{8,}/);
-  const slackToken=line.match(/xox[bp]-[A-Za-z0-9-]{8,}/);
-  const googleToken=line.match(/AIza[A-Za-z0-9_-]{20,}/);
-  const awsKey=line.match(/\bAKIA[A-Z0-9]{16}\b/);
-  const genericAssignment=line.match(/\b(?:[\w.-]*(?:password|passwd)|client_secret|api_key|secret_key|access_token)\s*[:=]\s*["']?([^"'\s,;#}\]]+)/i);
-  if(githubToken&&!tokenIsPlaceholder(githubToken[0]))title="Possible GitHub credential";
-  else if(slackToken&&!tokenIsPlaceholder(slackToken[0]))title="Possible Slack credential";
-  else if(googleToken&&!tokenIsPlaceholder(googleToken[0]))title="Possible Google API key";
-  else if(awsKey&&!tokenIsPlaceholder(awsKey[0]))title="Possible cloud access key";
-  else if(genericAssignment&&line.length>25&&!isPlaceholder(genericAssignment[1]))title="Possible hard-coded credential";
-  if(title)findings.push({severity,category,title,description:"This line resembles a credential pattern. It may be a false positive; verify whether the value is real.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"If real, revoke or rotate the credential, remove it from source, and consider cleaning Git history.",source_url:"https://github.com/"+owner+"/"+repo+"/blob/"+branch.split("/").map(encodeURIComponent).join("/")+"/"+path.split("/").map(encodeURIComponent).join("/")+"#L"+(index+1)});
-  if(path.startsWith(".github/workflows/")&&line.toLowerCase().includes("write-all"))findings.push({severity:"high",category:"Workflow",title:"Broad workflow permissions",description:"Broad write permissions increase the impact of a compromised workflow step.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Use least-privilege permissions at workflow or job scope."});
-  if(path.startsWith(".github/workflows/")&&/@main\b/.test(line))findings.push({severity:"medium",category:"Workflow",title:"Action uses a moving branch reference",description:"A branch reference can change without a reviewed workflow update.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Pin third-party actions to a full commit SHA."});
-  if(!/\.(?:md|txt)$/i.test(path)){
-   let risk="",riskSeverity="medium";
-   if(/(?:curl|wget)\b[^|]{0,240}\|\s*(?:sh|bash|zsh)\b/i.test(line)){risk="Remote script piped directly to a shell";riskSeverity="high"}
-   else if(/powershell(?:\.exe)?\b.{0,100}-(?:enc|encodedcommand)\b/i.test(line)){risk="PowerShell encoded command";riskSeverity="high"}
-   else if(/\beval\s*\(\s*(?:atob|Buffer\.from)\s*\(/i.test(line)){risk="Dynamic execution of encoded content";riskSeverity="high"}
-   else if(/(?:execSync|spawn|child_process)\s*\([^)]{0,180}(?:https?:\/\/|curl\b|wget\b)/i.test(line)){risk="Process execution combined with remote content";riskSeverity="medium"}
-   if(risk)findings.push({severity:riskSeverity,category:"Suspicious code",title:risk,description:"This pattern can be used for unsafe remote-code execution or obfuscation. Inspect surrounding code and confirm its purpose.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Avoid piping remote scripts directly to shells. Verify downloads, pin trusted sources, and remove unnecessary dynamic execution.",source_url:"https://github.com/"+owner+"/"+repo+"/blob/"+branch.split("/").map(encodeURIComponent).join("/")+"/"+path.split("/").map(encodeURIComponent).join("/")+"#L"+(index+1)});
-  }
- });
-}
-function parseDeps(path,text){const out=[],base=path.split("/").pop().toLowerCase();const add=(name,version,ecosystem)=>{if(name&&/^\d+\.\d+\.\d+/.test(version))out.push({name,version,ecosystem})};try{if(base==="package-lock.json"){for(const [p,v]of Object.entries(JSON.parse(text).packages||{}))if(p.startsWith("node_modules/")&&v.version)add(p.slice(p.lastIndexOf("node_modules/")+13),String(v.version),"npm")}else if(base.startsWith("requirements")&&base.endsWith(".txt")){for(const line of text.split(/\r?\n/)){const parts=line.split("==");if(parts.length===2)add(parts[0].trim(),parts[1].trim(),"PyPI")}}}catch{}return out}
+const {scanText,parseDeps}=window.RepoShieldScanner;
 async function scan(t){
  const meta=await getJson("https://api.github.com/repos/"+t.owner+"/"+t.repo);if(meta.private)throw Error("Only public repositories are supported.");
  const branch=meta.default_branch||"main";message("Reading repository file list…");
