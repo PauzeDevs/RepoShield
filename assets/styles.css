@@ -43,3 +43,68 @@ body{
 @media(max-width:520px){
   .brand small{letter-spacing:.8px}
 }
+
+
+/* Adapted from Pauze-backup-website: Apple-inspired graphite UI and ice-blue accents. */
+:root{color-scheme:dark;--bg:#07090d;--panel:#10141b;--panel-2:#171d26;--line:#2b323d;--line-2:#3b4654;--text:#e8edf3;--muted:#a2acb9;--dim:#728091;--mint:#a9ddf5;--blue:#a9ddf5;--green:#8be0ad;--font:"Exo 2",system-ui,sans-serif;--mono:"DM Mono",ui-monospace,monospace}
+html{scroll-behavior:smooth;scroll-padding-top:86px;background:var(--bg);color:var(--text)}
+body{margin:0;background:radial-gradient(ellipse at 50% -28%,rgba(169,221,245,.075),transparent 54%),var(--bg);color:var(--text);font-family:var(--font);font-size:16px;-webkit-font-smoothing:antialiased}
+::selection{background:var(--mint);color:#080b10}
+.topbar{position:sticky;top:0;z-index:50;width:100%;min-height:60px;margin:0;padding:0 max(24px,calc((100vw - 1120px)/2));display:flex;align-items:center;gap:28px;border:0;border-bottom:1px solid #ffffff14;border-radius:0;background:rgba(8,10,14,.94);backdrop-filter:blur(22px)}
+.brand{gap:10px;font-family:"Sora",system-ui,sans-serif;font-weight:700;letter-spacing:-.055em;font-size:19px}
+.brand-mark{width:31px;height:31px;border:1px solid #a9ddf530;border-radius:9px;background:#a9ddf50c}
+.brand-mark img{width:22px;height:22px;filter:drop-shadow(0 0 12px #a9ddf522)}
+.brand-light{color:var(--mint);background:none}
+.brand small{margin-top:2px;color:#8995a4;font:500 8px/1.4 "DM Mono",monospace;letter-spacing:.06em}
+.top-nav{display:flex;align-items:center;gap:clamp(16px,2.5vw,30px);margin-left:auto;font:500 13px "Exo 2",sans-serif}
+.top-nav a{color:#c3ccd6;transition:color .2s ease}.top-nav a:hover{color:var(--mint)}
+.nav-pill{display:inline-flex;align-items:center;gap:10px;padding:8px 14px;border:1px solid #a9ddf550;border-radius:999px;background:#a9ddf5;color:#080b10;font-weight:700;box-shadow:none}
+.nav-pill:hover{background:#d0efff;color:#080b10;filter:none;box-shadow:none}
+main{width:min(calc(100% - 48px),1120px);margin-inline:auto;padding:0}
+.hero{padding:clamp(72px,12vw,148px) 0 clamp(58px,9vw,100px);text-align:center}
+.eyebrow{justify-content:center;gap:11px;margin-bottom:23px;color:#a2acb9;font:600 10px/1.5 "DM Mono",monospace;letter-spacing:.12em}
+.eyebrow-divider{height:1px;width:25px;background:#4b5968}
+.hero h1{margin:0;font:600 clamp(48px,8.4vw,104px)/1.02 "Sora",system-ui,sans-serif;letter-spacing:-.075em}
+.gradient-text{color:#edf5ff;background:none;-webkit-text-fill-color:#edf5ff}
+.hero-copy{max-width:690px;margin:23px auto 0;color:#b2bdca;font:400 clamp(16px,2vw,20px)/1.7 "Exo 2",sans-serif}
+.trust-row{justify-content:center;gap:12px 24px;margin-top:28px;color:#b5c1ce;font:500 12px "Exo 2",sans-serif}.check-icon{color:var(--mint)}
+.scan-panel{max-width:920px;margin:0 auto;padding:clamp(22px,4vw,40px);border:1px solid #2b323d;border-radius:20px;background:linear-gradient(180deg,rgba(20,26,36,.88),rgba(13,17,24,.95));box-shadow:0 22px 70px #0003}
+.panel-top{align-items:center}.section-kicker{color:#8e9aa9;font:500 10px/1.5 "DM Mono",monospace;letter-spacing:.13em}
+.panel-top h2,.results-heading h2{font:600 clamp(22px,3vw,30px)/1.2 "Sora",sans-serif;letter-spacing:-.045em}
+.mode-tag{border:1px solid #a9ddf528;border-radius:999px;background:#a9ddf50b;color:#b8dff2}.mode-dot{background:#8be0ad;box-shadow:0 0 0 3px #8be0ad18}
+#scan-form>label{font:500 13px "Exo 2",sans-serif;color:#d7e0e8}
+.input-row{padding:5px;border:1px solid #3b4654;border-radius:14px;background:#080b10;box-shadow:none;gap:9px}
+.input-glyph{color:#a2acb9}.input-row input{min-width:0;color:var(--text);font:400 14px "DM Mono",monospace}.input-row input::placeholder{color:#627080}
+.input-row:focus-within{border-color:#a9ddf5;box-shadow:0 0 0 3px #a9ddf512}
+.primary-button{min-height:46px;padding:12px 19px;border:1px solid #a9ddf5;border-radius:999px;background:#a9ddf5;color:#080b10;font:700 13px "Exo 2",sans-serif;box-shadow:none;white-space:nowrap}
+.primary-button:hover{background:#d0efff;box-shadow:none;filter:none}.primary-button:disabled{opacity:.6}.button-arrow{font-size:17px}
+.input-help{color:#8f9cac;font:400 11px "DM Mono",monospace}.input-help .mono{color:#a2acb9}
+.status-message{font:500 13px "Exo 2",sans-serif}.status-message.success{color:#8be0ad}.status-message.error{color:#ff939b}
+.scan-boundary{margin-top:24px;padding:17px 18px;border:1px solid #2b323d;border-radius:13px;background:#0b0f15}.scan-boundary p{color:#9eabb9;font:400 13px/1.75 "Exo 2",sans-serif}.boundary-icon{color:var(--mint)}
+.results-section{padding-top:clamp(56px,8vw,92px)}.results-heading h2{font-size:clamp(28px,4vw,40px)}
+.results-subtitle{color:#9ba8b8;font:400 13px/1.7 "DM Mono",monospace}.results-subtitle a{color:#b7e6fb;text-decoration:underline;text-underline-offset:4px}
+.secondary-button{border:1px solid #414c5a;border-radius:999px;background:transparent;color:#dbe5ef;font:600 12px "Exo 2",sans-serif}.secondary-button:hover{border-color:var(--mint);color:var(--mint)}
+.summary-card{border:1px solid #2c3948;border-radius:18px;background:#101722;box-shadow:none}.summary-card[data-level="critical"]{border-color:#7b3b45}.summary-card[data-level="high"]{border-color:#73513a}.summary-card[data-level="clean"]{border-color:#315548}
+.summary-copy strong{font:650 15px "Sora",sans-serif;letter-spacing:-.025em}.summary-copy p{color:#9eacbc;font:400 13px/1.65 "Exo 2",sans-serif}
+.summary-score strong{font:600 27px "Sora",sans-serif;letter-spacing:-.05em}.summary-score span{color:#8392a5;font:500 9px "DM Mono",monospace}
+.metric-card{border:1px solid #2b323d;border-radius:16px;background:#10141b;box-shadow:none}.metric-label{font:500 10px "DM Mono",monospace;letter-spacing:.13em}.metric-card strong{font:600 32px "Sora",sans-serif;letter-spacing:-.06em}.metric-note{color:#8996a5;font:400 12px "Exo 2",sans-serif}
+.findings-toolbar h3{font:600 21px "Sora",sans-serif;letter-spacing:-.04em}.filter-wrap label{color:#9ba8b8;font:500 12px "Exo 2",sans-serif}
+.filter-wrap select{min-height:42px;border:1px solid #3b4654;border-radius:12px;background:#10141b;color:#e8edf3;font:500 13px "Exo 2",sans-serif}
+.finding-card{border:1px solid #2b323d;border-radius:16px;background:#10141b;box-shadow:none;overflow:hidden}.finding-title{font:650 14px "Sora",sans-serif;letter-spacing:-.02em}
+.finding-description{color:#a7b4c3;font:400 13px/1.75 "Exo 2",sans-serif}.severity-badge{border:1px solid transparent;border-radius:999px;font:600 10px "DM Mono",monospace}
+.severity-badge.high{background:#4a3222;color:#ffb36d}.severity-badge.critical{background:#432229;color:#ff939b}.severity-badge.medium{background:#403820;color:#ffd578}.severity-badge.low,.severity-badge.info{background:#192b3b;color:#a9ddf5}
+.severity-mark{box-shadow:none}.finding-meta,.file-path{color:#8c9caf;font:400 11px "DM Mono",monospace}.finding-meta a{color:#a9ddf5}
+.finding-fix{border-top:1px solid #2b323d;color:#a5b2c1;font:400 13px/1.75 "Exo 2",sans-serif}.finding-fix strong{color:#dbe5ef}
+.finding-details{border-top:1px solid #2b323d;background:#0b0f15;color:#9eacbc;font:400 12px "Exo 2",sans-serif}.finding-details summary{cursor:pointer}
+.finding-details pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#a9d9f2;font:400 11px/1.65 "DM Mono",monospace}
+.report-footnote{color:#8391a2;font:400 12px/1.8 "Exo 2",sans-serif}
+.how-section{padding:clamp(82px,10vw,124px) 0 62px}.how-section>h2{font:600 clamp(31px,5vw,50px)/1.1 "Sora",sans-serif;letter-spacing:-.065em}
+.how-intro{max-width:690px;color:#a4b1c0;font:400 17px/1.75 "Exo 2",sans-serif}.feature-grid{gap:14px}
+.feature-card{border:1px solid #2b323d;border-radius:16px;background:#10141b;box-shadow:none}.feature-card h3{font:600 16px "Sora",sans-serif;letter-spacing:-.03em}
+.feature-card p{color:#9eacbc;font:400 13px/1.75 "Exo 2",sans-serif}.feature-card>span{color:#9eb4c9;font:500 9px "DM Mono",monospace;letter-spacing:.1em}
+.feature-icon{border-radius:11px;background:#a9ddf50c;color:#a9ddf5}.feature-icon.icon-red{color:#ff939b;background:#ff939b0d}.feature-icon.icon-amber{color:#ffca7a;background:#ffca7a0d}.feature-icon.icon-blue{color:#a9ddf5;background:#a9ddf50d}.feature-icon.icon-green{color:#8be0ad;background:#8be0ad0d}
+.method-note{border:1px solid #2b323d;border-radius:16px;background:#10141b}.method-note p{color:#9eacbc;font:400 13px/1.75 "Exo 2",sans-serif}
+.footer{border-top:1px solid #ffffff14;color:#9ba8b8}.footer-brand{font:700 18px "Sora",sans-serif;color:#edf5ff}.footer a:hover{color:var(--mint)}
+@media(max-width:760px){.topbar{padding:0 18px;min-height:58px;gap:14px}.top-nav{gap:12px;font-size:12px}.top-nav>a:not(.nav-pill){display:none}.nav-pill{padding:8px 11px;font-size:11px}main{width:min(calc(100% - 32px),1120px)}.hero{padding-top:64px}.hero h1{font-size:clamp(44px,11vw,66px);letter-spacing:-.065em}.hero-copy{font-size:16px}.scan-panel{padding:23px 17px;border-radius:17px}.input-row{display:flex;flex-wrap:wrap}.input-glyph{display:none}.input-row input{flex:1 1 100%;width:100%;padding:13px 11px}.primary-button{width:100%;justify-content:center}.panel-top{align-items:flex-start}.results-heading{gap:12px}.summary-card{gap:11px}.feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:430px){.brand{font-size:17px}.brand small{font-size:7px;letter-spacing:.035em}.brand-mark{width:28px;height:28px}.eyebrow{font-size:8px;letter-spacing:.075em}.mode-tag{font-size:7px}.results-heading{align-items:flex-start}.results-heading h2{font-size:27px}.secondary-button{padding:10px 12px}.summary-card{align-items:flex-start}.summary-score strong{font-size:21px}.metric-card{padding:14px}.metric-card strong{font-size:27px}.feature-grid{grid-template-columns:1fr}.how-section>h2{font-size:31px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
