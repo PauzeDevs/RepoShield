@@ -49,6 +49,11 @@ jobs:
           assert 'id="scan-form"' in html
           print("Static site references look good.")
           PY
+      - name: Verify deployed API health
+        env:
+          API_BASE: https://reposhield-api-production.up.railway.app
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 "$API_BASE/health" | python -c 'import json,sys; data=json.load(sys.stdin); assert data.get("status") == "ok", data; print("RepoShield API health check passed.")'
   deploy:
     name: Publish website
     needs: validate
