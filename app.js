@@ -1,2 +1,1 @@
-/* GitHub Pages-only entry point. The scanner runs in the visitor browser. */
-import("./browser-scan.js");
+/* Legacy entry point retained for compatibility. index.html loads browser-scan.js directly. */
