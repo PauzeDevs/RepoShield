@@ -11,8 +11,8 @@ async function getJson(url,options={}){const r=await fetch(url,{...options,heade
 function isPlaceholder(value){
  const v=String(value||"").trim().toLowerCase();
  if(!v)return true;
- return /^(?:your(?:[-_\\s]|$)|replace(?:[-_\\s]|$)|insert(?:[-_\\s]|$)|example(?:[-_\\s]|$)|sample(?:[-_\\s]|$)|dummy(?:[-_\\s]|$)|fake(?:[-_\\s]|$)|change(?:me|it)(?:[-_\\s]|$)|redacted(?:[-_\\s]|$)|placeholder(?:[-_\\s]|$)|x{4,}(?:[-_\\s]|$)|<|\\$|process\\.env\\b|os\\.(?:getenv|environ)\\b|(?:none|null|undefined)$)/i.test(v) ||
-   /^test(?:[-_\\s](?:value|password|key|token|secret|credential)|$)/i.test(v);
+ return /^(?:your(?:[-_\s]|$)|replace(?:[-_\s]|$)|insert(?:[-_\s]|$)|example(?:[-_\s]|$)|sample(?:[-_\s]|$)|dummy(?:[-_\s]|$)|fake(?:[-_\s]|$)|change(?:me|it)(?:[-_\s]|$)|redacted(?:[-_\s]|$)|placeholder(?:[-_\s]|$)|x{4,}(?:[-_\s]|$)|<|\$|process\.env\b|os\.(?:getenv|environ)\b|(?:none|null|undefined)$)/i.test(v) ||
+   /^test(?:[-_\s](?:value|password|key|token|secret|credential)|$)/i.test(v);
 }
 function tokenIsPlaceholder(value){
  const suffix=String(value||"").replace(/^(?:ghp_|github_pat_|xox[bp]-|AIza|AKIA)/i,"");
