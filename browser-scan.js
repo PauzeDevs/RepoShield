@@ -11,7 +11,12 @@ async function getJson(url,options={}){const r=await fetch(url,{...options,heade
 function isPlaceholder(value){
  const v=String(value||"").trim().toLowerCase();
  if(!v)return true;
- return /^(?:your(?:[-_\s]|$)|replace(?:[-_\s]|$)|insert(?:[-_\s]|$)|example(?:[-_\s]|$)|sample(?:[-_\s]|$)|dummy(?:[-_\s]|$)|fake(?:[-_\s]|$)|test(?:[-_\s]|$)|change(?:me|it)(?:[-_\s]|$)|redacted(?:[-_\s]|$)|placeholder(?:[-_\s]|$)|x{4,}(?:[-_\s]|$)|<|\$|process\.env\b|os\.(?:getenv|environ)\b|(?:none|null|undefined)$)/i.test(v);
+ return /^(?:your(?:[-_\\s]|$)|replace(?:[-_\\s]|$)|insert(?:[-_\\s]|$)|example(?:[-_\\s]|$)|sample(?:[-_\\s]|$)|dummy(?:[-_\\s]|$)|fake(?:[-_\\s]|$)|change(?:me|it)(?:[-_\\s]|$)|redacted(?:[-_\\s]|$)|placeholder(?:[-_\\s]|$)|x{4,}(?:[-_\\s]|$)|<|\\$|process\\.env\\b|os\\.(?:getenv|environ)\\b|(?:none|null|undefined)$)/i.test(v) ||
+   /^test(?:[-_\\s](?:value|password|key|token|secret|credential)|$)/i.test(v);
+}
+function tokenIsPlaceholder(value){
+ const suffix=String(value||"").replace(/^(?:ghp_|github_pat_|xox[bp]-|AIza|AKIA)/i,"");
+ return isPlaceholder(suffix)||/(?:example|placeholder|dummy|fake|redacted|your(?:token|key|secret)|x{5,})/i.test(suffix);
 }
 function scanText(text,path,owner,repo,branch,findings){
  const lines=text.split(/\r?\n/);
@@ -22,10 +27,10 @@ function scanText(text,path,owner,repo,branch,findings){
   const googleToken=line.match(/AIza[A-Za-z0-9_-]{20,}/);
   const awsKey=line.match(/\bAKIA[A-Z0-9]{16}\b/);
   const genericAssignment=line.match(/\b(?:[\w.-]*password|client_secret|api_key)\s*[:=]\s*["']?([^"'\s,;#}\]]+)/i);
-  if(githubToken&&!isPlaceholder(githubToken[0])){title="Possible GitHub credential";matchedCredential=githubToken[0]}
-  else if(slackToken&&!isPlaceholder(slackToken[0])){title="Possible Slack credential";matchedCredential=slackToken[0]}
-  else if(googleToken&&!isPlaceholder(googleToken[0])){title="Possible Google API key";matchedCredential=googleToken[0]}
-  else if(awsKey&&!isPlaceholder(awsKey[0])){title="Possible cloud access key";matchedCredential=awsKey[0]}
+  if(githubToken&&!tokenIsPlaceholder(githubToken[0])){title="Possible GitHub credential";matchedCredential=githubToken[0]}
+  else if(slackToken&&!tokenIsPlaceholder(slackToken[0])){title="Possible Slack credential";matchedCredential=slackToken[0]}
+  else if(googleToken&&!tokenIsPlaceholder(googleToken[0])){title="Possible Google API key";matchedCredential=googleToken[0]}
+  else if(awsKey&&!tokenIsPlaceholder(awsKey[0])){title="Possible cloud access key";matchedCredential=awsKey[0]}
   else if(genericAssignment&&line.length>25&&!isPlaceholder(genericAssignment[1])){title="Possible hard-coded credential";matchedCredential=genericAssignment[1]}
   if(title){
    let evidence=line.slice(0,180);
