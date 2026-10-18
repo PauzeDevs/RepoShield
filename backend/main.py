@@ -354,6 +354,7 @@ async def inspect_dependencies(client: httpx.AsyncClient, dependencies: list[dic
     warnings: list[str] = []
     if not dependencies:
         return findings, warnings
+    advisory_candidates: list[tuple[dict[str, str], str]] = []
     for offset in range(0, len(dependencies), 100):
         batch = dependencies[offset:offset + 100]
         queries = [{"package": {"name": dep["name"], "ecosystem": dep["ecosystem"]}, "version": dep["version"]} for dep in batch]
@@ -365,55 +366,65 @@ async def inspect_dependencies(client: httpx.AsyncClient, dependencies: list[dic
         results = data.get("results", [])
         for dep, result in zip(batch, results):
             for vuln in result.get("vulns", []):
-                if len(findings) >= 100:
-                    warnings.append("Dependency findings were capped to keep the report readable.")
-                    return findings, warnings
                 vuln_id = str(vuln.get("id", ""))
-                title = vuln_id or "Known dependency vulnerability"
-                detail: dict[str, Any] = {}
                 if vuln_id:
-                    try:
-                        detail = await request_json(client, f"https://api.osv.dev/v1/vulns/{quote(vuln_id, safe='')}")
-                    except HTTPException:
-                        detail = {}
-                summary = str(detail.get("summary") or detail.get("details") or "This pinned dependency version is associated with a published vulnerability advisory.")
-                summary = re.sub(r"\s+", " ", summary).strip()[:500]
-                score = 0.0
-                for severity in detail.get("severity", []):
-                    try:
-                        score = max(score, float(severity.get("score", 0)))
-                    except (TypeError, ValueError):
-                        continue
-                database_severity = str(detail.get("database_specific", {}).get("severity", "")).lower()
-                if score >= 9 or database_severity == "critical":
-                    level = "critical"
-                elif score >= 7 or database_severity == "high":
-                    level = "high"
-                elif score >= 4 or database_severity == "moderate":
-                    level = "medium"
-                else:
-                    level = "medium"
-                fixed_versions: list[str] = []
-                for affected in detail.get("affected", []):
-                    package = affected.get("package", {})
-                    if package.get("name") != dep["name"] or package.get("ecosystem") != dep["ecosystem"]:
-                        continue
-                    for version_range in affected.get("ranges", []):
-                        for event in version_range.get("events", []):
-                            if event.get("fixed"):
-                                fixed_versions.append(str(event["fixed"]))
-                remediation = "Upgrade to a patched version if one is available, verify compatibility, and review the advisory."
-                if fixed_versions:
-                    remediation = "Upgrade to a fixed version (for example: " + ", ".join(dict.fromkeys(fixed_versions))[:180] + ") and verify compatibility."
-                findings.append(make_finding(
-                    severity=level, category="dependency", title=f"{dep['name']} {dep['version']} — {vuln_id}",
-                    description=summary, file=None, line=None,
-                    evidence=f"Package: {dep['name']}\nInstalled version: {dep['version']}\nEcosystem: {dep['ecosystem']}\nAdvisory: https://osv.dev/vulnerability/{vuln_id}",
-                    remediation=remediation, source_url=f"https://osv.dev/vulnerability/{quote(vuln_id, safe='')}",
-                    fingerprint=__import__("hashlib").sha256(f"{dep['ecosystem']}:{dep['name']}:{dep['version']}:{vuln_id}".encode()).hexdigest()[:12],
-                ))
-    return findings, warnings
+                    advisory_candidates.append((dep, vuln_id))
+                if len(advisory_candidates) >= 60:
+                    warnings.append("Dependency advisory details were capped at 60 to keep scan time bounded.")
+                    break
+            if len(advisory_candidates) >= 60:
+                break
+        if len(advisory_candidates) >= 60:
+            break
 
+    semaphore = asyncio.Semaphore(8)
+
+    async def load_detail(vuln_id: str) -> dict[str, Any]:
+        async with semaphore:
+            try:
+                return await request_json(client, f"https://api.osv.dev/v1/vulns/{quote(vuln_id, safe='')}")
+            except HTTPException:
+                return {}
+
+    details = await asyncio.gather(*(load_detail(vuln_id) for _, vuln_id in advisory_candidates))
+    for (dep, vuln_id), detail in zip(advisory_candidates, details):
+        summary = str(detail.get("summary") or detail.get("details") or "This pinned dependency version is associated with a published vulnerability advisory.")
+        summary = re.sub(r"\\s+", " ", summary).strip()[:500]
+        score = 0.0
+        for severity in detail.get("severity", []):
+            try:
+                score = max(score, float(severity.get("score", 0)))
+            except (TypeError, ValueError):
+                continue
+        database_severity = str(detail.get("database_specific", {}).get("severity", "")).lower()
+        if score >= 9 or database_severity == "critical":
+            level = "critical"
+        elif score >= 7 or database_severity == "high":
+            level = "high"
+        elif score >= 4 or database_severity == "moderate":
+            level = "medium"
+        else:
+            level = "medium"
+        fixed_versions: list[str] = []
+        for affected in detail.get("affected", []):
+            package = affected.get("package", {})
+            if package.get("name") != dep["name"] or package.get("ecosystem") != dep["ecosystem"]:
+                continue
+            for version_range in affected.get("ranges", []):
+                for event in version_range.get("events", []):
+                    if event.get("fixed"):
+                        fixed_versions.append(str(event["fixed"]))
+        remediation = "Upgrade to a patched version if one is available, verify compatibility, and review the advisory."
+        if fixed_versions:
+            remediation = "Upgrade to a fixed version (for example: " + ", ".join(dict.fromkeys(fixed_versions))[:180] + ") and verify compatibility."
+        findings.append(make_finding(
+            severity=level, category="dependency", title=f"{dep['name']} {dep['version']} — {vuln_id}",
+            description=summary, file=None, line=None,
+            evidence=f"Package: {dep['name']}\\nInstalled version: {dep['version']}\\nEcosystem: {dep['ecosystem']}\\nAdvisory: https://osv.dev/vulnerability/{vuln_id}",
+            remediation=remediation, source_url=f"https://osv.dev/vulnerability/{quote(vuln_id, safe='')}",
+            fingerprint=__import__("hashlib").sha256(f"{dep['ecosystem']}:{dep['name']}:{dep['version']}:{vuln_id}".encode()).hexdigest()[:12],
+        ))
+    return findings, warnings
 
 async def download_archive(client: httpx.AsyncClient, url: str) -> bytes:
     chunks: list[bytes] = []
