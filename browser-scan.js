@@ -10,9 +10,10 @@ function validTarget(value){let u;try{u=new URL(value.trim())}catch{throw Error(
 async function getJson(url,options={}){const r=await fetch(url,{...options,headers:{"Accept":"application/vnd.github+json",...(options.headers||{})},cache:"no-store"});if(r.status===404)throw Error("Repository not found or not public.");if(r.status===403||r.status===429)throw Error("An API rate limit was reached. Wait and retry.");if(!r.ok)throw Error("Source service returned HTTP "+r.status+".");return r.json()}
 const {scanText,parseDeps}=window.RepoShieldScanner;
 async function scan(t){
- const meta=await getJson("https://api.github.com/repos/"+t.owner+"/"+t.repo);if(meta.private)throw Error("Only public repositories are supported.");
+ if(!window.RepoShieldScanner||typeof scanText!=="function"||typeof parseDeps!=="function")throw Error("Scanner engine did not load. Refresh the page and try again.");
+ const meta=await getJson("https://api.github.com/repos/"+encodeURIComponent(t.owner)+"/"+encodeURIComponent(t.repo));if(meta.private)throw Error("Only public repositories are supported.");
  const branch=meta.default_branch||"main";message("Reading repository file list…");
- const tree=await getJson("https://api.github.com/repos/"+t.owner+"/"+t.repo+"/git/trees/"+encodeURIComponent(branch)+"?recursive=1");if(tree.truncated)throw Error("GitHub truncated this repository's file list; try a smaller repository.");
+ const tree=await getJson("https://api.github.com/repos/"+encodeURIComponent(t.owner)+"/"+encodeURIComponent(t.repo)+"/git/trees/"+encodeURIComponent(branch)+"?recursive=1");if(tree.truncated)throw Error("GitHub truncated this repository's file list; try a smaller repository.");
  const ignore=[".git","node_modules","vendor","dist","build",".venv","venv","coverage","target"];
  const allowed=["js","ts","py","sh","ps1","json","yml","yaml","toml","env","txt","md","xml","lock","html"];
  const eligibleFiles=(tree.tree||[]).filter(f=>f.type==="blob"&&f.size>0&&f.size<250000&&!f.path.split("/").some(part=>ignore.includes(part))&&(allowed.includes(f.path.split(".").pop().toLowerCase())||["package-lock.json","requirements.txt"].includes(f.path.split("/").pop().toLowerCase())));const files=eligibleFiles.slice(0,180);
