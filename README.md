@@ -8,10 +8,10 @@ RepoShield by PauzeX Developments is a browser-only GitHub repository security s
 ## What it checks
 
 - Common credential formats, including GitHub, GitLab, npm, Slack, Google, AWS-style access keys, bearer tokens, and PEM private-key headers. Findings show redacted evidence rather than the matched secret value.
-- Selected GitHub Actions hardening signals, including broad `write-all` permissions and `@main` action references.
+- GitHub Actions threat signals, including broad `write-all` permissions, privileged `pull_request_target` triggers, untrusted pull-request/issue text interpolated into shell commands, mutable action tags/branches, and persisted checkout credentials.
 - Suspicious static patterns such as remote scripts piped into a shell, PowerShell encoded commands, and encoded dynamic execution.
 - Pinned npm dependency versions from `package-lock.json` (modern and legacy lockfile formats) and exact-pinned Python versions from `requirements*.txt`, checked against the public OSV advisory service.
-- Severity counts, source links, remediation guidance, and downloadable JSON reports.
+- Advisory-informed dependency severity where OSV metadata provides it (otherwise defaults to medium for manual review).\n- Severity counts, source links, remediation guidance, and downloadable JSON reports.
 
 ## Hosting and privacy
 
@@ -35,7 +35,7 @@ node --test tests/scanner-core.test.cjs
 
 ## Important limitations
 
-RepoShield is an early-stage static scanner, not an antivirus product or a guarantee of repository safety. Pattern checks can miss issues and can produce false positives. Dependency findings need manual review; all dependency advisories currently carry a review-oriented severity rather than a complete per-advisory CVSS risk calculation. A clean report is not proof that software is safe.
+RepoShield is an early-stage static scanner, not an antivirus product or a guarantee of repository safety. Pattern checks can miss issues and can produce false positives. Dependency findings need manual review; advisory severity is inferred from available OSV severity labels where present and defaults to medium when metadata is unavailable. This is not a full CVSS calculation. A clean report is not proof that software is safe.
 
 ## Responsible use
 
