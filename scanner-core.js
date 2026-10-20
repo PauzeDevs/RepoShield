@@ -74,11 +74,21 @@
           source_url:sourceUrl(owner,repo,branch,path,index+1)
         });
       }
-      if(String(path).startsWith(".github/workflows/")&&line.toLowerCase().includes("write-all")){
-        output.push({severity:"high",category:"Workflow",title:"Broad workflow permissions",description:"Broad write permissions increase the impact of a compromised workflow step.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Use least-privilege permissions at workflow or job scope.",source_url:sourceUrl(owner,repo,branch,path,index+1)});
+      const isWorkflow=String(path).startsWith(".github/workflows/");
+      if(isWorkflow&&/\bpermissions\s*:\s*write-all\b/i.test(line)){
+        output.push({severity:"high",category:"Workflow",title:"Broad workflow permissions",description:"The workflow grants write access broadly, increasing the impact of a compromised action or injected command.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Declare permissions explicitly and grant only the minimum required scope to each job.",source_url:sourceUrl(owner,repo,branch,path,index+1)});
       }
-      if(String(path).startsWith(".github/workflows/")&&/@main\b/.test(line)){
-        output.push({severity:"medium",category:"Workflow",title:"Action uses a moving branch reference",description:"A branch reference can change without a reviewed workflow update.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Pin third-party actions to a full commit SHA.",source_url:sourceUrl(owner,repo,branch,path,index+1)});
+      if(isWorkflow&&/\bpull_request_target\s*:/i.test(line)){
+        output.push({severity:"high",category:"Workflow",title:"Privileged pull_request_target trigger",description:"This event can run with base-repository privileges. Checking out or executing untrusted pull-request content in the same workflow can expose secrets or write permissions.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Avoid checking out or executing pull-request head code in this privileged workflow. Prefer pull_request for untrusted validation and keep permissions minimal.",source_url:sourceUrl(owner,repo,branch,path,index+1)});
+      }
+      if(isWorkflow&&/\buses\s*:\s*[^\s#]+@(?:main|master|v?\d+(?:\.\d+){0,2})\s*(?:#.*)?$/i.test(line.trim())){
+        output.push({severity:"medium",category:"Workflow",title:"Action uses a mutable reference",description:"A branch or version tag can move, so the action code may change without a reviewed workflow diff.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Pin third-party actions to a verified full commit SHA and update pins deliberately.",source_url:sourceUrl(owner,repo,branch,path,index+1)});
+      }
+      if(isWorkflow&&/\brun\s*:\s*.*\$\{\{\s*github\.event\.(?:pull_request\.(?:title|body|head\.ref)|issue\.(?:title|body)|comment\.body)/i.test(line)){
+        output.push({severity:"high",category:"Workflow",title:"Untrusted event data interpolated into shell",description:"Pull-request or issue text can be attacker-controlled. Direct interpolation into a shell command can create command injection.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Pass event values through environment variables and quote them carefully; avoid eval and shell string construction. Treat the value as untrusted input.",source_url:sourceUrl(owner,repo,branch,path,index+1)});
+      }
+      if(isWorkflow&&/\bpersist-credentials\s*:\s*true\b/i.test(line)){
+        output.push({severity:"low",category:"Workflow",title:"Checkout persists repository credentials",description:"The checkout action leaves its token in Git configuration for later steps, where an untrusted or compromised step may access it.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Set persist-credentials: false unless a later step explicitly requires authenticated Git operations.",source_url:sourceUrl(owner,repo,branch,path,index+1)});
       }
       if(!/\.(?:md|txt)$/i.test(String(path))){
         let risk="",riskSeverity="medium";
