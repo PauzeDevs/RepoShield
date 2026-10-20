@@ -106,3 +106,25 @@ test("legacy npm package-lock files are parsed recursively", () => {
   assert.ok(found.some(d => d[0] === "left-pad" && d[1] === "1.3.0" && d[2] === "npm"));
   assert.ok(found.some(d => d[0] === "repeat-string" && d[1] === "1.6.1" && d[2] === "npm"));
 });
+
+
+test("privileged pull_request_target workflows are flagged", () => {
+  const findings = scanText("pull_request_target:\\n  types: [opened]", ".github/workflows/ci.yml", "owner", "repo", "main", []);
+  assert.ok(findings.some(f => f.title === "Privileged pull_request_target trigger" && f.severity === "high"));
+});
+
+test("untrusted pull request data interpolated into shell is flagged", () => {
+  const findings = scanText('run: echo "' + "${{ github.event.pull_request.title }}" + '"' , ".github/workflows/ci.yml", "owner", "repo", "main", []);
+  assert.ok(findings.some(f => f.title === "Untrusted event data interpolated into shell" && f.severity === "high"));
+});
+
+test("mutable version tags and credential persistence are flagged", () => {
+  const findings = scanText("uses: actions/checkout@v4\\npersist-credentials: true", ".github/workflows/ci.yml", "owner", "repo", "main", []);
+  assert.ok(findings.some(f => f.title === "Action uses a mutable reference"));
+  assert.ok(findings.some(f => f.title === "Checkout persists repository credentials"));
+});
+
+test("workflow references pinned to a full commit SHA are not flagged as mutable", () => {
+  const findings = scanText("uses: actions/checkout@3df4ab11eba7bda6032a0b4b55b2e1e8b9f9a2b4", ".github/workflows/ci.yml", "owner", "repo", "main", []);
+  assert.equal(findings.filter(f => f.title === "Action uses a mutable reference").length, 0);
+});
