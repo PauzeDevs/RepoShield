@@ -60,7 +60,7 @@ test("dangerous remote shell patterns are findings outside documentation", () =>
 test("risky GitHub workflow patterns include a source link", () => {
   const findings = scanText("permissions: write-all\nuses: actions/checkout@main", ".github/workflows/ci.yml", "owner", "repo", "feature/security", []);
   assert.ok(findings.some(f => f.title === "Broad workflow permissions" && f.severity === "high"));
-  const moving = findings.find(f => f.title === "Action uses a moving branch reference");
+  const moving = findings.find(f => f.title === "Action uses a mutable reference");
   assert.ok(moving);
   assert.equal(moving.source_url, "https://github.com/owner/repo/blob/feature/security/.github/workflows/ci.yml#L2");
 });
