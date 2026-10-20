@@ -109,7 +109,7 @@ test("legacy npm package-lock files are parsed recursively", () => {
 
 
 test("privileged pull_request_target workflows are flagged", () => {
-  const findings = scanText("pull_request_target:\\n  types: [opened]", ".github/workflows/ci.yml", "owner", "repo", "main", []);
+  const findings = scanText("pull_request_target:\n  types: [opened]", ".github/workflows/ci.yml", "owner", "repo", "main", []);
   assert.ok(findings.some(f => f.title === "Privileged pull_request_target trigger" && f.severity === "high"));
 });
 
@@ -119,7 +119,7 @@ test("untrusted pull request data interpolated into shell is flagged", () => {
 });
 
 test("mutable version tags and credential persistence are flagged", () => {
-  const findings = scanText("uses: actions/checkout@v4\\npersist-credentials: true", ".github/workflows/ci.yml", "owner", "repo", "main", []);
+  const findings = scanText("uses: actions/checkout@v4\npersist-credentials: true", ".github/workflows/ci.yml", "owner", "repo", "main", []);
   assert.ok(findings.some(f => f.title === "Action uses a mutable reference"));
   assert.ok(findings.some(f => f.title === "Checkout persists repository credentials"));
 });
