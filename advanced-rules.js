@@ -1,7 +1,7 @@
 (function (root, factory) {
   "use strict";
   if (typeof module === "object" && module.exports) module.exports = factory;
-  else root.RepoShieldAdvancedRules = factory;
+  else root.RepoShieldScanner = factory(root.RepoShieldScanner);
 })(typeof window !== "undefined" ? window : globalThis, function (engine) {
   "use strict";
   if (!engine || typeof engine.scanText !== "function") throw new TypeError("RepoShield scanner core is required");
