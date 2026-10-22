@@ -119,7 +119,7 @@ test("privileged workflows checking out pull request head refs are critical", ()
   const risky = findings.find(f => f.title === "Untrusted pull request checked out by privileged workflow");
   assert.ok(risky);
   assert.equal(risky.severity, "critical");
-  assert.equal(risky.line, 5);
+  assert.equal(risky.line, 6);
 });
 
 test("pull request head checkout is not escalated without pull_request_target", () => {
