@@ -23,6 +23,8 @@ jobs:
           test -s index.html
           test -s browser-scan.js
           test -s scanner-core.js
+          test -s tools/reposhield-ci.cjs
+          test -s .github/workflows/reposhield-scan.yml
           test -s tests/scanner-core.test.cjs
           test -s assets/styles.css
           test -s assets/shield.svg
@@ -30,4 +32,5 @@ jobs:
           test "$(tr -d '\r\n' < CNAME)" = "reposhield.devs.surf"
           node --check browser-scan.js
           node --check scanner-core.js
+          node --check tools/reposhield-ci.cjs
           node --test tests/scanner-core.test.cjs
