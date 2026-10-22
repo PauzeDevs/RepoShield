@@ -33,6 +33,8 @@
 - **Exposed credentials:** recognises common GitHub, GitLab, npm, Slack, Google, AWS-style, bearer-token, and private-key patterns. Evidence is redacted in reports.
 - **GitHub Actions risks:** flags broad workflow permissions, privileged `pull_request_target` triggers, unsafe interpolation of event text into shell commands, mutable action references, persisted checkout credentials, and risky pull-request head checkouts.
 - **Suspicious code patterns:** looks for patterns such as piping remote scripts directly to a shell, encoded PowerShell commands, and some forms of encoded dynamic execution.
+- **Install-time supply-chain risks:** reviews npm `preinstall`, `install`, `postinstall`, and `prepare` hooks for risky shell/download execution, and flags Git, URL, or local-path dependencies for source review.
+- **Workflow attack paths:** flags direct interpolation of workflow inputs into shell commands and highlights `workflow_run` artifact trust boundaries for manual review.
 - **Pinned dependencies:** checks supported npm `package-lock.json` and exact-pinned Python `requirements*.txt` entries against the public OSV advisory service.
 - **Actionable findings:** provides severity, file and line references where applicable, source links, remediation guidance, and coverage warnings.
 
@@ -82,7 +84,10 @@ The job needs only `contents: read`. It checks out the target revision and a sep
 |---|---|
 | `index.html` | Static app shell and accessible page structure |
 | `assets/styles.css` | Layout, responsive styling, and visual components |
-| `assets/ambient-field.js` | Lightweight animated canvas background inspired by ThreeUI's atmospheric fields |
+| `assets/ambient-field.js` | Lightweight animated perspective grid and pointer-reactive particle field |
+| `assets/threeui-motion.css` | Depth styling and reduced-motion-aware visual treatment |
+| `advanced-rules.js` | Additional supply-chain and workflow attack-path heuristics |
+| `tests/advanced-rules.test.cjs` | Regression tests for the added heuristics |
 | `browser-scan.js` | GitHub API access, scan orchestration, and UI rendering |
 | `scanner-core.js` | Shared static pattern detection, redaction, and dependency parsing |
 | `tools/reposhield-ci.cjs` | Local-filesystem scanner used by GitHub Actions |
@@ -98,7 +103,9 @@ Use Node.js and run:
 node --check browser-scan.js
 node --check scanner-core.js
 node --check tools/reposhield-ci.cjs
-node --test tests/scanner-core.test.cjs
+node --check advanced-rules.js
+node --check assets/ambient-field.js
+node --test tests/scanner-core.test.cjs tests/advanced-rules.test.cjs
 ```
 
 ## Limits and privacy
