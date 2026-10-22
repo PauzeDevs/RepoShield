@@ -1,6 +1,6 @@
 # RepoShield
 
-RepoShield by PauzeX Developments is a browser-only GitHub repository security scanner hosted on GitHub Pages.
+RepoShield by PauzeX Developments is a GitHub repository security scanner with a browser-based interface and a reusable GitHub Actions workflow.
 
 **Live site:** https://reposhield.devs.surf/  
 **Source:** https://github.com/PauzeDevs/RepoShield
@@ -15,7 +15,7 @@ RepoShield by PauzeX Developments is a browser-only GitHub repository security s
 
 ## Hosting and privacy
 
-The website is a static GitHub Pages site. There is no scanning backend, no account requirement, and no GitHub token requested from visitors. Repository files are fetched directly by the visitor's browser from public GitHub URLs and are not uploaded to a RepoShield server. The scanner never executes repository code.
+The website is a static GitHub Pages site. There is no scanning backend, no account requirement, and no GitHub token requested from visitors. Browser scans fetch public repository files directly from GitHub and do not upload them to a RepoShield server. The CI workflow scans a checkout on an ephemeral GitHub-hosted runner using a separate, pinned copy of RepoShield's scanner; it does not execute target repository code or require repository secrets.
 
 ## Scan limits
 
