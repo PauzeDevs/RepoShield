@@ -143,3 +143,59 @@ test("workflow references pinned to a full commit SHA are not flagged as mutable
   const findings = scanText("uses: actions/checkout@3df4ab11eba7bda6032a0b4b55b2e1e8b9f9a2b4", ".github/workflows/ci.yml", "owner", "repo", "main", []);
   assert.equal(findings.filter(f => f.title === "Action uses a mutable reference").length, 0);
 });
+
+
+test("CI threshold blocks only findings at or above the configured severity", () => {
+  const { shouldFail } = require("../tools/reposhield-ci.cjs");
+  const findings = [{severity:"medium"}, {severity:"high"}];
+  assert.equal(shouldFail(findings, "critical"), false);
+  assert.equal(shouldFail(findings, "high"), true);
+  assert.equal(shouldFail(findings, "medium"), true);
+  assert.equal(shouldFail(findings, "never"), false);
+  assert.throws(() => shouldFail(findings, "invalid"), /Invalid fail threshold/);
+});
+
+test("CI scanner scans source files without executing repository code", async () => {
+  const fs = require("node:fs");
+  const os = require("node:os");
+  const path = require("node:path");
+  const { scanDirectory } = require("../tools/reposhield-ci.cjs");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "reposhield-ci-test-"));
+  try {
+    fs.mkdirSync(path.join(root, "src"), {recursive:true});
+    fs.mkdirSync(path.join(root, ".github", "workflows"), {recursive:true});
+    fs.writeFileSync(path.join(root, "src", "config.js"), 'const api_key = "actual-secret-value-84721";\\n');
+    fs.writeFileSync(path.join(root, ".github", "workflows", "ci.yml"), "permissions: write-all\\n");
+    fs.writeFileSync(path.join(root, "src", "execute.js"), 'throw new Error("repository code must not run");\\n');
+    const report = await scanDirectory(root, {
+      owner:"example", repo:"sample", ref:"main", lookupAdvisories:false
+    });
+    assert.equal(report.scanned_files, 3);
+    assert.ok(report.findings.some(f => f.title === "Possible hard-coded credential"));
+    assert.ok(report.findings.some(f => f.title === "Broad workflow permissions"));
+    const credential = report.findings.find(f => f.title === "Possible hard-coded credential");
+    assert.ok(!credential.evidence.includes("actual-secret-value-84721"));
+    assert.ok(credential.evidence.includes("[REDACTED]"));
+  } finally {
+    fs.rmSync(root, {recursive:true, force:true});
+  }
+});
+
+test("CI scanner reports ignored build and dependency directories in neither findings nor coverage", async () => {
+  const fs = require("node:fs");
+  const os = require("node:os");
+  const path = require("node:path");
+  const { scanDirectory } = require("../tools/reposhield-ci.cjs");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "reposhield-ci-ignore-"));
+  try {
+    fs.mkdirSync(path.join(root, "node_modules", "evil"), {recursive:true});
+    fs.mkdirSync(path.join(root, "src"), {recursive:true});
+    fs.writeFileSync(path.join(root, "node_modules", "evil", "config.js"), 'const api_key = "secret-value-123456";\\n');
+    fs.writeFileSync(path.join(root, "src", "clean.js"), "const safe = true;\\n");
+    const report = await scanDirectory(root, {lookupAdvisories:false});
+    assert.equal(report.scanned_files, 1);
+    assert.equal(report.findings.length, 0);
+  } finally {
+    fs.rmSync(root, {recursive:true, force:true});
+  }
+});
