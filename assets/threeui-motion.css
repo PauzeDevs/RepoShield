@@ -102,3 +102,39 @@ body{background-color:#07090d}
   .feature-card::before{transition:none}
   .primary-button:hover{transform:none}
 }
+
+
+/* Visible 3D interaction layer: perspective cards, depth lighting and tilt affordance. */
+main{perspective:1400px;perspective-origin:50% 35%}
+.scan-panel,.feature-card,.metric-card,.summary-card{
+  transform-style:preserve-3d;
+  backface-visibility:hidden;
+  will-change:transform;
+}
+.scan-panel{
+  position:relative;
+  transition:transform .28s cubic-bezier(.2,.75,.25,1),border-color .25s ease,box-shadow .25s ease;
+  box-shadow:0 24px 60px rgba(0,0,0,.28),0 1px 0 rgba(255,255,255,.035) inset;
+}
+.scan-panel::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(125deg,rgba(169,221,245,.10),transparent 28%,transparent 70%,rgba(105,154,255,.06));
+  opacity:.75;transform:translateZ(1px)
+}
+.feature-card,.metric-card,.summary-card{
+  transition:transform .25s cubic-bezier(.2,.75,.25,1),border-color .25s ease,box-shadow .25s ease;
+}
+.feature-card:hover,.metric-card:hover,.summary-card:hover{
+  transform:translateY(-5px) rotateX(2deg) rotateY(-1deg) translateZ(8px);
+  border-color:rgba(169,221,245,.38);
+  box-shadow:0 18px 38px rgba(0,0,0,.22);
+}
+.ambient-field{opacity:1!important}
+@media(max-width:640px){
+  .scan-panel{transform:none!important}
+  .feature-card:hover,.metric-card:hover,.summary-card:hover{transform:translateY(-2px)}
+  .ambient-field{opacity:.82!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .scan-panel,.feature-card,.metric-card,.summary-card{transition:none!important;transform:none!important}
+}
