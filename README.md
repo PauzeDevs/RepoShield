@@ -8,7 +8,7 @@ RepoShield by PauzeX Developments is a browser-only GitHub repository security s
 ## What it checks
 
 - Common credential formats, including GitHub, GitLab, npm, Slack, Google, AWS-style access keys, bearer tokens, and PEM private-key headers. Findings show redacted evidence rather than the matched secret value.
-- GitHub Actions threat signals, including broad `write-all` permissions, privileged `pull_request_target` triggers, untrusted pull-request/issue text interpolated into shell commands, mutable action tags/branches, and persisted checkout credentials.
+- GitHub Actions threat signals, including broad `write-all` permissions, privileged `pull_request_target` triggers, untrusted pull-request/issue text interpolated into shell commands, mutable action tags/branches, and persisted checkout credentials, and the critical-risk combination of `pull_request_target` with a checkout of an untrusted pull-request head ref.
 - Suspicious static patterns such as remote scripts piped into a shell, PowerShell encoded commands, and encoded dynamic execution.
 - Pinned npm dependency versions from `package-lock.json` (modern and legacy lockfile formats) and exact-pinned Python versions from `requirements*.txt`, checked against the public OSV advisory service.
 - Advisory-informed dependency severity where OSV metadata provides it (otherwise defaults to medium for manual review).\n- Severity counts, source links, remediation guidance, and downloadable JSON reports.
