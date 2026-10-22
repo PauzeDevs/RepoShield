@@ -1,0 +1,46 @@
+name: RepoShield reusable scan
+
+on:
+  workflow_call:
+    inputs:
+      fail-on:
+        description: "Fail when findings reach this severity or higher. Use never for report-only mode."
+        required: false
+        type: string
+        default: critical
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Static security scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out target repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.sha }}
+          path: target
+          persist-credentials: false
+
+      - name: Check out trusted RepoShield scanner
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: PauzeDevs/RepoShield
+          ref: 9fb60fd1c730edabc603412bc35dfd9220025080
+          path: reposhield
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: "24"
+
+      - name: Scan without executing repository code
+        env:
+          REPOSHIELD_FAIL_ON: ${{ inputs.fail-on }}
+        run: node "$GITHUB_WORKSPACE/reposhield/tools/reposhield-ci.cjs" "$GITHUB_WORKSPACE/target"
