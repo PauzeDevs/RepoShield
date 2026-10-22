@@ -6,6 +6,7 @@ const {
   scanText,
   parseDeps
 } = require("../scanner-core.js");
+// Keep the CLI's coverage limits aligned with the browser scanner.
 const SEVERITIES = ["critical",
 "high",
 "medium",
@@ -19,25 +20,38 @@ const LIMITS = Object.freeze({
   totalBytes: 3000000,
   dependencies: 60
 });
+
 function markdownEscape(value) {
-  return String(value == null ? "": value).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\\/g, "\\\\").replace(/([\x60*_{}\[\]()#+.!|>~-])/g, "\\$1").replace(/\s+/g, " ").slice(0, 500);
+  return String(value == null ? "": value)
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\\/g, "\\\\")
+    .replace(/([\x60*_{}\[\]()#+.!|>~-])/g, "\\$1")
+    .replace(/\s+/g, " ")
+    .slice(0, 500);
 }
+
 function isSupportedFile(filePath) {
-  const base = path.basename(filePath).toLowerCase();
-  const ext = path.extname(base).replace(/^\./, "");
+  const base = path.basename(filePath)
+    .toLowerCase();
+  const ext = path.extname(base)
+    .replace(/^\./, "");
   return ALLOWED_EXTENSIONS.has(ext) || base === "package-lock.json" || (base.startsWith("requirements") && base.endsWith(".txt"));
 }
+// Traverse deterministically and exclude generated or installed dependencies.
+
 function listFiles(root, limits = LIMITS) {
   const files = [],
   warnings = [];
   let oversizedFiles = 0,
   supportedCount = 0;
+
   function walk(directory, relativeDirectory) {
     let entries;
     try {
       entries = fs.readdirSync(directory, {
         withFileTypes: true
-      }).sort((a, b) => a.name.localeCompare(b.name));
+      })
+        .sort((a, b) => a.name.localeCompare(b.name));
     } catch {
       warnings.push("Some directories could not be read; scan coverage may be incomplete.");
       return;
@@ -80,10 +94,14 @@ function listFiles(root, limits = LIMITS) {
     oversizedFiles
   };
 }
+
 function advisorySeverity(vulnerability) {
   const values = [vulnerability.database_specific && vulnerability.database_specific.severity,
   vulnerability.ecosystem_specific && vulnerability.ecosystem_specific.severity,
-  ...(vulnerability.severity || []).map(item => item.type === "CVSS_V3" || item.type === "CVSS_V4" ? item.score: "")].filter(Boolean).map(value => String(value).toUpperCase());
+  ...(vulnerability.severity || [])
+    .map(item => item.type === "CVSS_V3" || item.type === "CVSS_V4" ? item.score: "")].filter(Boolean)
+    .map(value => String(value)
+    .toUpperCase());
   for (const value of values) {
     if (value.includes("CRITICAL")) return "critical";
     if (value.includes("HIGH")) return "high";
@@ -92,6 +110,7 @@ function advisorySeverity(vulnerability) {
   }
   return "medium";
 }
+// Advisory lookups are best-effort; outages become explicit coverage warnings.
 async function lookupOSV(dependencies, fetchImpl = globalThis.fetch) {
   if (!dependencies.length) return {
     findings: [],
@@ -125,7 +144,8 @@ async function lookupOSV(dependencies, fetchImpl = globalThis.fetch) {
     if (!response.ok) throw new Error("OSV HTTP " + response.status);
     const result = await response.json(),
     findings = [];
-    (result.results || []).forEach((item, index) => {
+    (result.results || [])
+      .forEach((item, index) => {
       for (const vulnerability of item.vulns || []) {
         findings.push({
           severity: advisorySeverity(vulnerability),
@@ -150,6 +170,7 @@ async function lookupOSV(dependencies, fetchImpl = globalThis.fetch) {
     };
   }
 }
+// Read files as data only. This scanner never imports or executes target code.
 async function scanDirectory(root, options = {}) {
   const resolvedRoot = path.resolve(root);
   if (!fs.existsSync(resolvedRoot) || !fs.statSync(resolvedRoot).isDirectory()) throw new Error("Target path does not exist or is not a directory: " + resolvedRoot);
@@ -183,7 +204,8 @@ async function scanDirectory(root, options = {}) {
     bytesRead += Buffer.byteLength(content, "utf8");
     scannedFiles++;
     require("../scanner-core.js").scanText(content, file.path, owner, repo, ref, findings);
-    const base = path.basename(file.path).toLowerCase();
+    const base = path.basename(file.path)
+      .toLowerCase();
     if (base === "package-lock.json" || (base.startsWith("requirements") && base.endsWith(".txt"))) dependencies.push(...parseDeps(file.path, content));
   }
   if (options.lookupAdvisories !== false && dependencies.length) {
@@ -210,12 +232,16 @@ async function scanDirectory(root, options = {}) {
     }
   };
 }
+// Make the build threshold explicit and predictable for callers.
+
 function shouldFail(findings, threshold = "critical") {
   if (threshold === "never") return false;
   if (!SEVERITIES.includes(threshold)) throw new Error("Invalid fail threshold: " + threshold);
   const thresholdIndex = SEVERITIES.indexOf(threshold);
   return findings.some(item => SEVERITIES.includes(item.severity) && SEVERITIES.indexOf(item.severity) <= thresholdIndex);
 }
+// Keep the report suitable for GitHub Actions' Markdown job summary.
+
 function writeSummary(report, threshold, summaryPath) {
   const lines = [ "# RepoShield scan",
   "",
@@ -261,7 +287,8 @@ function writeSummary(report, threshold, summaryPath) {
   return body;
 }
 async function main() {
-  const threshold = String(process.env.REPOSHIELD_FAIL_ON || "critical").toLowerCase();
+  const threshold = String(process.env.REPOSHIELD_FAIL_ON || "critical")
+    .toLowerCase();
   if (threshold !== "never" && !SEVERITIES.includes(threshold)) throw new Error("REPOSHIELD_FAIL_ON must be critical, high, medium, low, info, or never.");
   const target = process.argv[2] || process.env.REPOSHIELD_TARGET_DIR || process.env.GITHUB_WORKSPACE || process.cwd();
   const fullName = process.env.GITHUB_REPOSITORY || "local/repository";
