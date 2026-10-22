@@ -6,7 +6,7 @@
   if (!ctx) return;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
   const pointer = { x: 0, y: 0, active: false };
-  let width = 1, height = 1, ratio = 1, frame = 0, lastFrame = 0, nodes = [];
+  let width = 1, height = 1, ratio = 1, frame = 0, lastFrame = 0, nodes = [], started = false;
   const colors = ["#a9ddf5", "#73b8ff", "#b4c9ff"];
 
   function resize() {
@@ -38,7 +38,7 @@
     ctx.transform(1, 0, .16, .48, 0, 0);
     const horizon = -height * .1;
     for (let i = 0; i <= 13; i++) {
-      const y = horizon + i * i * 2.15;
+      const y = horizon + i * i * 2.15 + (still || reduced.matches ? 0 : Math.sin(t * 1.8) * 3);
       if (y > height * 1.2) break;
       ctx.strokeStyle = "rgba(111,177,235," + Math.min(.11, .012 + i * .006) + ")";
       ctx.lineWidth = .7;
@@ -73,14 +73,14 @@
   }
 
   function animate(time) {
-    if (document.hidden || reduced.matches) return;
+    if (document.hidden || reduced.matches) { started = false; return; }
     if (time - lastFrame > 28) { draw(time); lastFrame = time; }
     frame = requestAnimationFrame(animate);
   }
   function start() {
     cancelAnimationFrame(frame);
     draw(0, reduced.matches);
-    if (!reduced.matches && !document.hidden) frame = requestAnimationFrame(animate);
+    if (!reduced.matches && !document.hidden) { started = true; frame = requestAnimationFrame(animate); }
   }
   canvas.setAttribute("aria-hidden", "true");
   window.addEventListener("resize", resize, { passive: true });
