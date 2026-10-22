@@ -78,8 +78,8 @@
     ctx.restore();
 
     // Rotating wireframe sphere: a real 3D projection rendered directly to canvas.
-    const radius = Math.min(width, height) * (width < 640 ? .14 : .17);
-    const sphereX = width * .77 + px * 24;
+    const radius = Math.min(width, height) * (width < 640 ? .205 : .18);
+    const sphereX = width * (width < 640 ? .79 : .76) + px * 24;
     const sphereY = height * .42 + py * 18;
     const rotateY = t * .65, rotateX = -.28 + Math.sin(t * .45) * .07;
     const projectSphere = (lat, lon) => {
@@ -101,7 +101,7 @@
         const p = projectSphere(lat, step / 72 * Math.PI * 2);
         if (!step) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
       }
-      ctx.strokeStyle = "rgba(139,199,241," + (latIndex === 0 ? ".20" : ".10") + ")";
+      ctx.strokeStyle = "rgba(139,199,241," + (latIndex === 0 ? ".34" : ".19") + ")";
       ctx.stroke();
     }
     for (let longitude = 0; longitude < 12; longitude++) {
@@ -110,7 +110,7 @@
         const p = projectSphere(-Math.PI / 2 + step / 64 * Math.PI, longitude / 12 * Math.PI * 2);
         if (!step) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
       }
-      ctx.strokeStyle = "rgba(139,199,241,.12)";
+      ctx.strokeStyle = "rgba(139,199,241,.22)";
       ctx.stroke();
     }
     ctx.restore();
