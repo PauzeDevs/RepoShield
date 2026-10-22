@@ -1,30 +1,313 @@
 (() => {
-"use strict";
-const $=s=>document.querySelector(s);
-const form=$("#scan-form"),input=$("#repo-url"),button=$("#scan-button"),status=$("#scan-status"),results=$("#results"),list=$("#findings-list"),filter=$("#severity-filter");
-let report=null;
-const levels=["critical","high","medium","low","info"];
-function advisorySeverity(v){const candidates=[v.database_specific?.severity,v.ecosystem_specific?.severity,...(v.severity||[]).map(s=>s.type==="CVSS_V3"||s.type==="CVSS_V4"?s.score:"")].filter(Boolean).map(s=>String(s).toUpperCase());for(const s of candidates){if(s.includes("CRITICAL"))return"critical";if(s.includes("HIGH"))return"high";if(s.includes("MODERATE")||s.includes("MEDIUM"))return"medium";if(s.includes("LOW"))return"low"}return"medium"}
-function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n}
-function message(text,kind=""){status.textContent=text;status.className="status-message"+(kind?" "+kind:"")}
-function validTarget(value){let u;try{u=new URL(value.trim())}catch{throw Error("Enter a valid GitHub repository URL.")}if(u.protocol!=="https:"||u.hostname!=="github.com")throw Error("Only HTTPS GitHub repository URLs are supported.");const p=u.pathname.split("/").filter(Boolean);if(p.length!==2)throw Error("Use https://github.com/owner/repository.");return{owner:p[0],repo:p[1].replace(/\.git$/i,""),url:"https://github.com/"+p[0]+"/"+p[1]}}
-async function getJson(url,options={}){const r=await fetch(url,{...options,headers:{"Accept":"application/vnd.github+json",...(options.headers||{})},cache:"no-store"});if(r.status===404)throw Error("Repository not found or not public.");if(r.status===403||r.status===429)throw Error("An API rate limit was reached. Wait and retry.");if(!r.ok)throw Error("Source service returned HTTP "+r.status+".");return r.json()}
-const {scanText,parseDeps}=window.RepoShieldScanner;
-async function scan(t){
- if(!window.RepoShieldScanner||typeof scanText!=="function"||typeof parseDeps!=="function")throw Error("Scanner engine did not load. Refresh the page and try again.");
- const meta=await getJson("https://api.github.com/repos/"+encodeURIComponent(t.owner)+"/"+encodeURIComponent(t.repo));if(meta.private)throw Error("Only public repositories are supported.");
- const branch=meta.default_branch||"main";message("Reading repository file list…");
- const tree=await getJson("https://api.github.com/repos/"+encodeURIComponent(t.owner)+"/"+encodeURIComponent(t.repo)+"/git/trees/"+encodeURIComponent(branch)+"?recursive=1");if(tree.truncated)throw Error("GitHub truncated this repository's file list; try a smaller repository.");
- const ignore=[".git","node_modules","vendor","dist","build",".venv","venv","coverage","target"];
- const allowed=["js","ts","py","sh","ps1","json","yml","yaml","toml","env","txt","md","xml","lock","html","pem","key","crt"];
- const eligibleFiles=(tree.tree||[]).filter(f=>f.type==="blob"&&f.size>0&&f.size<250000&&!f.path.split("/").some(part=>ignore.includes(part))&&(allowed.includes(f.path.split(".").pop().toLowerCase())||["package-lock.json","requirements.txt"].includes(f.path.split("/").pop().toLowerCase())));const oversizedFiles=(tree.tree||[]).filter(f=>f.type==="blob"&&f.size>=250000&&!f.path.split("/").some(part=>ignore.includes(part))&&allowed.includes(f.path.split(".").pop().toLowerCase())).length;const files=eligibleFiles.slice(0,180);
- const findings=[],deps=[],warnings=[];const warn=m=>{if(!warnings.includes(m))warnings.push(m)};let bytes=0,scanned=0;if(eligibleFiles.length===0)warn("No supported source files or dependency manifests were found.");if(oversizedFiles)warn(oversizedFiles+" supported file(s) exceed the 250 KB per-file limit and were skipped.");if(eligibleFiles.length>files.length)warn("Repository exceeds the 180-file scan limit; some files were not inspected.");
- for(const f of files){if(bytes>=3000000){warn("The 3 MB source scan limit was reached; remaining files were not inspected.");break;}if(bytes+f.size>3000000){warn("Some files were skipped to stay within the 3 MB source scan limit.");continue;}message("Inspecting files… "+(scanned+1)+" / "+files.length);try{const url="https://raw.githubusercontent.com/"+t.owner+"/"+t.repo+"/"+branch.split("/").map(encodeURIComponent).join("/")+"/"+f.path.split("/").map(encodeURIComponent).join("/");const res=await fetch(url,{cache:"no-store"});if(!res.ok){warn("Some source files could not be retrieved.");continue;}const text=await res.text();if(text.includes("\u0000"))continue;bytes+=new TextEncoder().encode(text).length;scanned++;scanText(text,f.path,t.owner,t.repo,branch,findings);if(f.path.endsWith("package-lock.json")||f.path.split("/").pop().startsWith("requirements"))deps.push(...parseDeps(f.path,text))}catch{warn("Some source files could not be retrieved.")}}
- if(deps.length){message("Checking pinned dependency versions against OSV…");try{const dependencySet=[...new Map(deps.map(d=>[[d.ecosystem,d.name,d.version].join(":"),d])).values()];if(dependencySet.length>60)warn("Only 60 pinned dependency versions are checked per scan.");const unique=dependencySet.slice(0,60);const data=await getJson("https://api.osv.dev/v1/querybatch",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({queries:unique.map(d=>({package:{name:d.name,ecosystem:d.ecosystem},version:d.version}))})});data.results?.forEach((result,i)=>(result.vulns||[]).forEach(v=>findings.push({severity:advisorySeverity(v),category:"Dependency",title:unique[i].name+" "+unique[i].version+" — "+v.id,description:"This pinned dependency version matches a published OSV advisory. Severity is inferred from advisory metadata when available; review the linked advisory before prioritizing or upgrading.",evidence:"Package: "+unique[i].name+"\nVersion: "+unique[i].version,remediation:"Review the advisory and upgrade to a patched version if available.",source_url:"https://osv.dev/vulnerability/"+encodeURIComponent(v.id)})))}catch{warn("OSV lookup unavailable or rate-limited; dependency results may be incomplete.")}}
- const counts=Object.fromEntries(levels.map(s=>[s,findings.filter(f=>f.severity===s).length]));return{generated_at:new Date().toISOString(),repository:{full_name:meta.full_name,html_url:meta.html_url},scanned_files:scanned,findings,counts,warnings,limitations:["This scanner runs entirely in the browser. Repository files are fetched from public GitHub URLs and are not uploaded to a RepoShield server.","Repository code is never executed. Static checks can miss issues and produce false positives.","Only public repositories and selected file formats are checked. API quotas and file caps limit coverage."]};
-}
-function draw(){if(!report)return;const findings=report.findings.filter(f=>filter.value==="all"||f.severity===filter.value);list.replaceChildren();if(!findings.length){list.append(el("div","empty-state","No findings at this filter level."));return}for(const f of findings){const card=el("article","finding-card"),main=el("div","finding-main"),mark=el("span","severity-mark "+f.severity),body=el("div","finding-content"),row=el("div","finding-title-row");row.append(el("span","finding-title",f.title),el("span","severity-badge "+f.severity,f.severity));body.append(row,el("p","finding-description",f.description));const meta=el("div","finding-meta");if(f.file)meta.append(el("span","file-path",f.file+":"+f.line));if(f.source_url){const a=el("a","","Open source/advisory ↗");a.href=f.source_url;a.target="_blank";a.rel="noopener noreferrer";meta.append(a)}body.append(meta);if(f.remediation){const fix=el("div","finding-fix");fix.append(el("strong","","Recommended action: "),document.createTextNode(f.remediation));body.append(fix)}main.append(mark,body);card.append(main);if(f.evidence){const d=document.createElement("details");d.className="finding-details";d.append(el("summary","","View redacted evidence"),el("pre","",f.evidence));card.append(d)}list.append(card)}}
-function show(r){const c=r.counts,top=levels.find(s=>c[s])||"clean";$("#count-critical").textContent=c.critical;$("#count-high").textContent=c.high;$("#count-medium").textContent=c.medium;$("#count-low").textContent=c.low+c.info;const box=$("#scan-summary");box.replaceChildren();box.dataset.level=top;box.append(el("div","summary-icon",top==="clean"?"✓":"!"));const copy=el("div","summary-copy");copy.append(el("strong","",r.findings.length?r.findings.length+" finding(s) require review":"No findings from enabled checks"),el("p","",r.findings.length?"Review evidence and recommendations; findings can be false positives.":"No issues were flagged. This does not prove the repository is safe."));const score=el("div","summary-score");score.append(el("strong","",top.toUpperCase()),el("span","","HIGHEST SEVERITY"));box.append(copy,score);const meta=$("#repo-meta"),a=el("a","",r.repository.full_name);a.href=r.repository.html_url;a.target="_blank";a.rel="noopener noreferrer";meta.replaceChildren(a,document.createTextNode(" · "+r.scanned_files+" files inspected"));if(r.warnings.length)meta.append(document.createElement("br"),el("span","report-footnote",r.warnings.join(" ")));draw()}
-form.addEventListener("submit",async e=>{e.preventDefault();let t;try{t=validTarget(input.value)}catch(err){message(err.message,"error");return}button.disabled=true;button.querySelector(".button-label").textContent="Scanning in browser…";results.hidden=true;try{report=await scan(t);show(report);results.hidden=false;message("Scan complete. Review findings before taking action.","success");results.scrollIntoView({behavior:"smooth",block:"start"})}catch(err){message(err.message||"Scan failed.","error")}finally{button.disabled=false;button.querySelector(".button-label").textContent="Analyze repository"}});
-filter.addEventListener("change",draw);$("#export-report").addEventListener("click",()=>{if(!report)return;const blob=new Blob([JSON.stringify(report,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=el("a");a.href=url;a.download="reposhield-report.json";document.body.append(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1500)});$("#year").textContent=new Date().getFullYear();
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const form = $("#scan-form"),
+  input = $("#repo-url"),
+  button = $("#scan-button"),
+  status = $("#scan-status"),
+  results = $("#results"),
+  list = $("#findings-list"),
+  filter = $("#severity-filter");
+  let report = null;
+  const levels = ["critical",
+  "high",
+  "medium",
+  "low",
+  "info"];
+  function advisorySeverity(v) {
+    const candidates = [v.database_specific?.severity,
+    v.ecosystem_specific?.severity,
+    ...(v.severity || []).map(s => s.type === "CVSS_V3" || s.type === "CVSS_V4" ? s.score: "")].filter(Boolean).map(s => String(s).toUpperCase());
+    for (const s of candidates) {
+      if (s.includes("CRITICAL"))return"critical";
+      if (s.includes("HIGH"))return"high";
+      if (s.includes("MODERATE") || s.includes("MEDIUM"))return"medium";
+      if (s.includes("LOW"))return"low"
+    }
+    return"medium"
+  }
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = String(text);
+    return n
+  }
+  function message(text, kind = "") {
+    status.textContent = text;
+    status.className = "status-message" + (kind ? " " + kind: "")
+  }
+  function validTarget(value) {
+    let u;
+    try {
+      u = new URL(value.trim())
+    } catch {
+      throw Error("Enter a valid GitHub repository URL.")
+    }
+    if (u.protocol !== "https:" || u.hostname !== "github.com")throw Error("Only HTTPS GitHub repository URLs are supported.");
+    const p = u.pathname.split("/").filter(Boolean);
+    if (p.length !== 2)throw Error("Use https://github.com/owner/repository.");
+    return {
+      owner: p[0],
+      repo: p[1].replace(/\.git$/i, ""),
+      url: "https://github.com/" + p[0] + "/" + p[1]
+    }
+  }
+  async function getJson(url, options = {}) {
+    const r = await fetch(url, {
+      ...options,
+      headers: {
+        "Accept": "application/vnd.github+json",
+        ...(options.headers || {})
+      },
+      cache: "no-store"
+    });
+    if (r.status === 404)throw Error("Repository not found or not public.");
+    if (r.status === 403 || r.status === 429)throw Error("An API rate limit was reached. Wait and retry.");
+    if (!r.ok)throw Error("Source service returned HTTP " + r.status + ".");
+    return r.json()
+  }
+  const {
+    scanText,
+    parseDeps
+  } = window.RepoShieldScanner;
+  async function scan(t) {
+    if (!window.RepoShieldScanner || typeof scanText !== "function" || typeof parseDeps !== "function")throw Error("Scanner engine did not load. Refresh the page and try again.");
+    const meta = await getJson("https://api.github.com/repos/" + encodeURIComponent(t.owner) + "/" + encodeURIComponent(t.repo));
+    if (meta.private)throw Error("Only public repositories are supported.");
+    const branch = meta.default_branch || "main";
+    message("Reading repository file list…");
+    const tree = await getJson("https://api.github.com/repos/" + encodeURIComponent(t.owner) + "/" + encodeURIComponent(t.repo) + "/git/trees/" + encodeURIComponent(branch) + "?recursive=1");
+    if (tree.truncated)throw Error("GitHub truncated this repository's file list; try a smaller repository.");
+    const ignore = [".git",
+    "node_modules",
+    "vendor",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    "coverage",
+    "target"];
+    const allowed = ["js",
+    "ts",
+    "py",
+    "sh",
+    "ps1",
+    "json",
+    "yml",
+    "yaml",
+    "toml",
+    "env",
+    "txt",
+    "md",
+    "xml",
+    "lock",
+    "html",
+    "pem",
+    "key",
+    "crt"];
+    const eligibleFiles = (tree.tree || []).filter(f => f.type === "blob" && f.size > 0 && f.size < 250000 && !f.path.split("/").some(part => ignore.includes(part)) && (allowed.includes(f.path.split(".").pop().toLowerCase()) || ["package-lock.json", "requirements.txt"].includes(f.path.split("/").pop().toLowerCase())));
+    const oversizedFiles = (tree.tree || []).filter(f => f.type === "blob" && f.size >= 250000 && !f.path.split("/").some(part => ignore.includes(part)) && allowed.includes(f.path.split(".").pop().toLowerCase())).length;
+    const files = eligibleFiles.slice(0, 180);
+    const findings = [],
+    deps = [],
+    warnings = [];
+    const warn = m => {
+      if (!warnings.includes(m)) warnings.push(m)
+    };
+    let bytes = 0,
+    scanned = 0;
+    if (eligibleFiles.length === 0) warn("No supported source files or dependency manifests were found.");
+    if (oversizedFiles) warn(oversizedFiles + " supported file(s) exceed the 250 KB per-file limit and were skipped.");
+    if (eligibleFiles.length > files.length) warn("Repository exceeds the 180-file scan limit; some files were not inspected.");
+    for (const f of files) {
+      if (bytes >= 3000000) {
+        warn("The 3 MB source scan limit was reached; remaining files were not inspected.");
+        break;
+      }
+      if (bytes + f.size > 3000000) {
+        warn("Some files were skipped to stay within the 3 MB source scan limit.");
+        continue;
+      }
+      message("Inspecting files… " + (scanned + 1) + " / " + files.length);
+      try {
+        const url = "https://raw.githubusercontent.com/" + t.owner + "/" + t.repo + "/" + branch.split("/").map(encodeURIComponent).join("/") + "/" + f.path.split("/").map(encodeURIComponent).join("/");
+        const res = await fetch(url, {
+          cache: "no-store"
+        });
+        if (!res.ok) {
+          warn("Some source files could not be retrieved.");
+          continue;
+        }
+        const text = await res.text();
+        if (text.includes("\u0000")) continue;
+        bytes += new TextEncoder().encode(text).length;
+        scanned++;
+        scanText(text, f.path, t.owner, t.repo, branch, findings);
+        if (f.path.endsWith("package-lock.json") || f.path.split("/").pop().startsWith("requirements")) deps.push(...parseDeps(f.path, text))
+      } catch {
+        warn("Some source files could not be retrieved.")
+      }
+    }
+    if (deps.length) {
+      message("Checking pinned dependency versions against OSV…");
+      try {
+        const dependencySet = [...new Map(deps.map(d => [[d.ecosystem, d.name, d.version].join(":"), d])).values()];
+        if (dependencySet.length > 60) warn("Only 60 pinned dependency versions are checked per scan.");
+        const unique = dependencySet.slice(0, 60);
+        const data = await getJson("https://api.osv.dev/v1/querybatch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            queries: unique.map(d => ({
+              package: {
+                name: d.name,
+                ecosystem: d.ecosystem
+              },
+              version: d.version
+            }))
+          })
+        });
+        data.results?.forEach((result, i) => (result.vulns || []).forEach(v => findings.push({
+          severity: advisorySeverity(v),
+          category: "Dependency",
+          title: unique[i].name + " " + unique[i].version + " — " + v.id,
+          description: "This pinned dependency version matches a published OSV advisory. Severity is inferred from advisory metadata when available; review the linked advisory before prioritizing or upgrading.",
+          evidence: "Package: " + unique[i].name + "\nVersion: " + unique[i].version,
+          remediation: "Review the advisory and upgrade to a patched version if available.",
+          source_url: "https://osv.dev/vulnerability/" + encodeURIComponent(v.id)
+        })))
+      } catch {
+        warn("OSV lookup unavailable or rate-limited; dependency results may be incomplete.")
+      }
+    }
+    const counts = Object.fromEntries(levels.map(s => [s, findings.filter(f => f.severity === s).length]));
+    return {
+      generated_at: new Date().toISOString(),
+      repository: {
+        full_name: meta.full_name,
+        html_url: meta.html_url
+      },
+      scanned_files: scanned,
+      findings,
+      counts,
+      warnings,
+      limitations: ["This scanner runs entirely in the browser. Repository files are fetched from public GitHub URLs and are not uploaded to a RepoShield server.",
+      "Repository code is never executed. Static checks can miss issues and produce false positives.",
+      "Only public repositories and selected file formats are checked. API quotas and file caps limit coverage."]
+    };
+  }
+  function draw() {
+    if (!report)return;
+    const findings = report.findings.filter(f => filter.value === "all" || f.severity === filter.value);
+    list.replaceChildren();
+    if (!findings.length) {
+      list.append(el("div", "empty-state", "No findings at this filter level."));
+      return
+    }
+    for (const f of findings) {
+      const card = el("article", "finding-card"),
+      main = el("div", "finding-main"),
+      mark = el("span", "severity-mark " + f.severity),
+      body = el("div", "finding-content"),
+      row = el("div", "finding-title-row");
+      row.append(el("span", "finding-title", f.title), el("span", "severity-badge " + f.severity, f.severity));
+      body.append(row, el("p", "finding-description", f.description));
+      const meta = el("div", "finding-meta");
+      if (f.file) meta.append(el("span", "file-path", f.file + ":" + f.line));
+      if (f.source_url) {
+        const a = el("a", "", "Open source/advisory ↗");
+        a.href = f.source_url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        meta.append(a)
+      }
+      body.append(meta);
+      if (f.remediation) {
+        const fix = el("div", "finding-fix");
+        fix.append(el("strong", "", "Recommended action: "), document.createTextNode(f.remediation));
+        body.append(fix)
+      }
+      main.append(mark, body);
+      card.append(main);
+      if (f.evidence) {
+        const d = document.createElement("details");
+        d.className = "finding-details";
+        d.append(el("summary", "", "View redacted evidence"), el("pre", "", f.evidence));
+        card.append(d)
+      }
+      list.append(card)
+    }
+  }
+  function show(r) {
+    const c = r.counts,
+    top = levels.find(s => c[s]) || "clean";
+    $("#count-critical").textContent = c.critical;
+    $("#count-high").textContent = c.high;
+    $("#count-medium").textContent = c.medium;
+    $("#count-low").textContent = c.low + c.info;
+    const box = $("#scan-summary");
+    box.replaceChildren();
+    box.dataset.level = top;
+    box.append(el("div", "summary-icon", top === "clean" ? "✓": "!"));
+    const copy = el("div", "summary-copy");
+    copy.append(el("strong", "", r.findings.length ? r.findings.length + " finding(s) require review": "No findings from enabled checks"), el("p", "", r.findings.length ? "Review evidence and recommendations; findings can be false positives.": "No issues were flagged. This does not prove the repository is safe."));
+    const score = el("div", "summary-score");
+    score.append(el("strong", "", top.toUpperCase()), el("span", "", "HIGHEST SEVERITY"));
+    box.append(copy, score);
+    const meta = $("#repo-meta"),
+    a = el("a", "", r.repository.full_name);
+    a.href = r.repository.html_url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    meta.replaceChildren(a, document.createTextNode(" · " + r.scanned_files + " files inspected"));
+    if (r.warnings.length) meta.append(document.createElement("br"), el("span", "report-footnote", r.warnings.join(" ")));
+    draw()
+  }
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    let t;
+    try {
+      t = validTarget(input.value)
+    } catch (err) {
+      message(err.message, "error");
+      return
+    }
+    button.disabled = true;
+    button.querySelector(".button-label").textContent = "Scanning in browser…";
+    results.hidden = true;
+    try {
+      report = await scan(t);
+      show(report);
+      results.hidden = false;
+      message("Scan complete. Review findings before taking action.", "success");
+      results.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      })
+    } catch (err) {
+      message(err.message || "Scan failed.", "error")
+    } finally {
+      button.disabled = false;
+      button.querySelector(".button-label").textContent = "Analyze repository"
+    }
+  });
+  filter.addEventListener("change", draw);
+  $("#export-report").addEventListener("click", () => {
+    if (!report)return;
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: "application/json"
+    }),
+    url = URL.createObjectURL(blob),
+    a = el("a");
+    a.href = url;
+    a.download = "reposhield-report.json";
+    document.body.append(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1500)
+  });
+  $("#year").textContent = new Date().getFullYear();
 })();
