@@ -113,6 +113,21 @@ test("privileged pull_request_target workflows are flagged", () => {
   assert.ok(findings.some(f => f.title === "Privileged pull_request_target trigger" && f.severity === "high"));
 });
 
+test("privileged workflows checking out pull request head refs are critical", () => {
+  const source = "pull_request_target:\n  types: [opened]\nsteps:\n  - uses: actions/checkout@v4\n    with:\n      ref: ${{ github.event.pull_request.head.sha }}";
+  const findings = scanText(source, ".github/workflows/ci.yml", "owner", "repo", "main", []);
+  const risky = findings.find(f => f.title === "Untrusted pull request checked out by privileged workflow");
+  assert.ok(risky);
+  assert.equal(risky.severity, "critical");
+  assert.equal(risky.line, 5);
+});
+
+test("pull request head checkout is not escalated without pull_request_target", () => {
+  const source = "pull_request:\n  types: [opened]\nsteps:\n  - uses: actions/checkout@v4\n    with:\n      ref: ${{ github.event.pull_request.head.sha }}";
+  const findings = scanText(source, ".github/workflows/ci.yml", "owner", "repo", "main", []);
+  assert.equal(findings.filter(f => f.title === "Untrusted pull request checked out by privileged workflow").length, 0);
+});
+
 test("untrusted pull request data interpolated into shell is flagged", () => {
   const findings = scanText('run: echo "' + "${{ github.event.pull_request.title }}" + '"' , ".github/workflows/ci.yml", "owner", "repo", "main", []);
   assert.ok(findings.some(f => f.title === "Untrusted event data interpolated into shell" && f.severity === "high"));
