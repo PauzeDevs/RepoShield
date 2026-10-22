@@ -1,18 +1,24 @@
-(() => {
+(function (root, factory) {
   "use strict";
-  const engine = window.RepoShieldScanner;
-  if (!engine || typeof engine.scanText !== "function") return;
-  const scanBase = engine.scanText;
-  const makeUrl = engine.sourceUrl;
-  engine.scanText = function(text, path, owner, repo, branch, findings) {
-    const output = scanBase(text, path, owner, repo, branch, findings || []);
+  if (typeof module === "object" && module.exports) module.exports = factory;
+  else root.RepoShieldAdvancedRules = factory;
+})(typeof window !== "undefined" ? window : globalThis, function (engine) {
+  "use strict";
+  if (!engine || typeof engine.scanText !== "function") throw new TypeError("RepoShield scanner core is required");
+  const original = engine.scanText;
+  const sourceUrl = engine.sourceUrl;
+
+  engine.scanText = function (text, path, owner, repo, branch, findings) {
+    const output = original(text, path, owner, repo, branch, findings || []);
     const file = String(path || "");
     const source = String(text || "");
     const lines = source.split(/\r?\n/);
     const add = (line, title, severity, description, remediation, category = "Supply chain") => {
-      output.push({ severity, category, title, description, file, line,
+      output.push({
+        severity, category, title, description, file, line,
         evidence: engine.redactEvidence(lines[line - 1] || ""),
-        remediation, source_url: makeUrl(owner, repo, branch, file, line) });
+        remediation, source_url: sourceUrl(owner, repo, branch, file, line)
+      });
     };
 
     if (/(^|\/)package\.json$/i.test(file)) {
@@ -64,4 +70,5 @@
     }
     return output;
   };
-})();
+  return engine;
+});
