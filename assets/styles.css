@@ -113,3 +113,41 @@ main{width:min(calc(100% - 48px),1120px);margin-inline:auto;padding:0}
 .gradient-text{-webkit-text-fill-color:var(--mint);color:var(--mint);background:none}
 
 .results-subtitle .report-footnote{display:block;margin-top:8px}
+
+
+/* ThreeUI-inspired ambient field: custom canvas, restrained contrast, no UI overlay. */
+.ambient-field {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.72;
+  contain: strict;
+}
+
+.topbar,
+main,
+.footer {
+  position: relative;
+  z-index: 1;
+}
+
+.ambient {
+  z-index: 0;
+  opacity: 0.16;
+}
+
+@media (max-width: 640px) {
+  .ambient-field {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-field {
+    opacity: 0.38;
+  }
+}
