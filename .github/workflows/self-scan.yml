@@ -1,0 +1,16 @@
+name: RepoShield self-scan
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    uses: ./.github/workflows/reposhield-scan.yml
+    with:
+      fail-on: critical
