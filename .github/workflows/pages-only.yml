@@ -32,6 +32,7 @@ jobs:
           test -s assets/styles.css
           test -s assets/threeui-motion.css
           test -s assets/ambient-field.js
+          test -s assets/threeui-interaction.js
           test -s assets/shield.svg
           test -s CNAME
           test "$(tr -d '\r\n' < CNAME)" = "reposhield.devs.surf"
@@ -39,5 +40,6 @@ jobs:
           node --check scanner-core.js
           node --check advanced-rules.js
           node --check assets/ambient-field.js
+          node --check assets/threeui-interaction.js
           node --check tools/reposhield-ci.cjs
           node --test tests/scanner-core.test.cjs tests/advanced-rules.test.cjs
