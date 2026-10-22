@@ -41,3 +41,64 @@ main{width:min(100% - 36px, 1120px);min-width:0}
   .top-nav .nav-pill{font-size:10px;padding:7px}
   main{width:calc(100% - 24px)}
 }
+
+
+/* Product polish: calmer surfaces, clearer hierarchy, less dead space on phones. */
+:root{--surface-glass:rgba(16,22,31,.78);--edge-soft:rgba(169,221,245,.14)}
+body{background-color:#07090d}
+.scan-panel,.summary-card,.metric-card,.finding-card,.feature-card,.method-note{
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+}
+.scan-panel{border-color:var(--edge-soft)}
+.input-row{transition:border-color .2s ease,box-shadow .2s ease}
+.input-row:focus-within{box-shadow:0 0 0 3px rgba(169,221,245,.08)}
+.primary-button{transition:transform .18s ease,background .18s ease,box-shadow .18s ease}
+.primary-button:hover{transform:translateY(-1px);box-shadow:0 7px 22px rgba(169,221,245,.13)}
+.feature-card{position:relative;overflow:hidden}
+.feature-card::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(135deg,rgba(169,221,245,.045),transparent 45%);opacity:0;transition:opacity .25s ease}
+.feature-card:hover::before{opacity:1}
+.ambient-field{opacity:.9!important}
+@media(max-width:640px){
+  .topbar{position:relative;min-height:62px}
+  .brand{flex-shrink:0}
+  .brand small{max-width:160px;white-space:nowrap}
+  .top-nav{flex-shrink:0}
+  .top-nav>a:first-child{display:none}
+  .hero{padding-top:46px;padding-bottom:34px}
+  .hero h1{max-width:12ch;margin-inline:auto;font-size:clamp(40px,10.5vw,58px);line-height:1.03}
+  .hero-copy{max-width:38ch;margin-top:18px}
+  .trust-row{margin-top:20px}
+  .scan-panel{margin-inline:auto;padding:18px 14px}
+  .panel-top{gap:8px}
+  .panel-top h2{font-size:23px}
+  .scan-boundary{padding:13px}
+  .results-section{padding-top:44px}
+  .how-section{padding:54px 0 38px}
+  .how-section>h2{font-size:clamp(29px,7vw,38px)}
+  .feature-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .feature-card{padding:15px 13px}
+  .feature-card p{min-height:0}
+  .method-note{margin-bottom:38px}
+  .footer{gap:10px 14px}
+  .ambient-field{opacity:.62!important}
+}
+@media(max-width:390px){
+  .topbar{padding-inline:12px;gap:7px}
+  .brand{gap:6px;font-size:14px}
+  .brand-mark{width:27px;height:27px}
+  .brand-mark img{width:19px;height:19px}
+  .brand small{font-size:6px;letter-spacing:0}
+  .top-nav .nav-pill{padding:7px 8px;font-size:10px}
+  main{width:calc(100% - 24px)}
+  .hero{padding-top:38px}
+  .eyebrow{font-size:7px;letter-spacing:.06em;gap:7px}
+  .hero h1{font-size:clamp(38px,10vw,44px)}
+  .input-help{gap:8px}
+  .input-help .mono{font-size:7px}
+  .feature-grid{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  .feature-card::before{transition:none}
+  .primary-button:hover{transform:none}
+}
