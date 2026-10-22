@@ -81,6 +81,7 @@ The job needs only `contents: read`. It checks out the target revision and a sep
 |---|---|
 | `index.html` | Static app shell and accessible page structure |
 | `assets/styles.css` | Layout, responsive styling, and visual components |
+| `assets/ambient-field.js` | Lightweight animated canvas background inspired by ThreeUI's atmospheric fields |
 | `browser-scan.js` | GitHub API access, scan orchestration, and UI rendering |
 | `scanner-core.js` | Shared static pattern detection, redaction, and dependency parsing |
 | `tools/reposhield-ci.cjs` | Local-filesystem scanner used by GitHub Actions |
