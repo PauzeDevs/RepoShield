@@ -2,10 +2,8 @@
 "use strict";
 const fs = require("node:fs");
 const path = require("node:path");
-const {
-  scanText,
-  parseDeps
-} = require("../scanner-core.js");
+const scannerCore = require("../scanner-core.js");
+const { scanText, parseDeps } = require("../advanced-rules.js")(scannerCore);
 // Keep the CLI's coverage limits aligned with the browser scanner.
 const SEVERITIES = ["critical",
 "high",
