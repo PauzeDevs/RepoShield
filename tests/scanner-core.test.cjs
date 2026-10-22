@@ -71,7 +71,7 @@ test("source paths are encoded segment by segment", () => {
 
 
 test("PEM private key headers are reported as critical", () => {
-  const findings = scanText("-----BEGIN ENCRYPTED PRIVATE KEY-----", "keys/release.pem", "owner", "repo", "main", []);
+  const findings = scanText("-----BEGIN " + "ENCRYPTED PRIVATE KEY-----", "keys/release.pem", "owner", "repo", "main", []);
   assert.equal(findings.length, 1);
   assert.equal(findings[0].title, "Private key material");
   assert.equal(findings[0].severity, "critical");
