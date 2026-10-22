@@ -4,23 +4,52 @@
   if (root) root.RepoShieldScanner = api;
 })(typeof window !== "undefined" ? window: (typeof globalThis !== "undefined" ? globalThis: this), function() {
   "use strict";
+  // Filter obvious example values to reduce noisy credential findings.
+
   function isPlaceholder(value) {
-    const v = String(value || "").trim().toLowerCase();
-    if (!v)return true;
+    const v = String(value || "")
+      .trim()
+      .toLowerCase();
+    if (!v) return true;
     return /^(?:your(?:[-_\s]|$)|replace(?:[-_\s]|$)|insert(?:[-_\s]|$)|example(?:[-_\s]|$)|sample(?:[-_\s]|$)|dummy(?:[-_\s]|$)|fake(?:[-_\s]|$)|change(?:me|it)(?:[-_\s]|$)|redacted(?:[-_\s]|$)|placeholder(?:[-_\s]|$)|x{4,}(?:[-_\s]|$)|<|\$|process\.env\b|os\.(?:getenv|environ)\b|(?:none|null|undefined)$)/i.test(v) || /^test(?:[-_\s](?:value|password|key|token|secret|credential)|$)/i.test(v);
   }
+
   function tokenIsPlaceholder(value) {
-    const suffix = String(value || "").replace(/^(?:ghp_|github_pat_|xox[bp]-|AIza|AKIA)/i, "");
+    const suffix = String(value || "")
+      .replace(/^(?:ghp_|github_pat_|xox[bp]-|AIza|AKIA)/i, "");
     return isPlaceholder(suffix) || /(?:example|placeholder|dummy|fake|redacted|your(?:token|key|secret)|x{5,})/i.test(suffix);
   }
+  // Redact secrets before including source lines in reports.
+
   function redactEvidence(line) {
-    return String(line).replace(/(?:ghp_|github_pat_)[A-Za-z0-9_]{8,}/g, "[REDACTED]").replace(/glpat-[A-Za-z0-9_-]{20,}/g, "[REDACTED]").replace(/npm_[A-Za-z0-9]{30,}/g, "[REDACTED]").replace(/sk_live_[A-Za-z0-9]{16,}/g, "[REDACTED]").replace(/sk-(?:proj-)?[A-Za-z0-9_-]{20,}/g, "[REDACTED]").replace(/xox[bp]-[A-Za-z0-9-]{8,}/g, "[REDACTED]").replace(/AIza[A-Za-z0-9_-]{20,}/g, "[REDACTED]").replace(/\bAKIA[A-Z0-9]{16}\b/g, "[REDACTED]").replace(/(\b[\w.-]*(?:password|passwd|client_secret|api_key|secret_key|access_token|aws_secret_access_key|aws_session_token|stripe_secret_key|private_key)\b\s*[:=]\s*["']?)[^"'\s,;#}\]]+/ig, "$1[REDACTED]").replace(/(\bBearer\s+)[A-Za-z0-9._~-]{20,}/ig, "$1[REDACTED]").slice(0, 180);
+    return String(line)
+      .replace(/(?:ghp_|github_pat_)[A-Za-z0-9_]{8,}/g, "[REDACTED]")
+      .replace(/glpat-[A-Za-z0-9_-]{20,}/g, "[REDACTED]")
+      .replace(/npm_[A-Za-z0-9]{30,}/g, "[REDACTED]")
+      .replace(/sk_live_[A-Za-z0-9]{16,}/g, "[REDACTED]")
+      .replace(/sk-(?:proj-)?[A-Za-z0-9_-]{20,}/g, "[REDACTED]")
+      .replace(/xox[bp]-[A-Za-z0-9-]{8,}/g, "[REDACTED]")
+      .replace(/AIza[A-Za-z0-9_-]{20,}/g, "[REDACTED]")
+      .replace(/\bAKIA[A-Z0-9]{16}\b/g, "[REDACTED]")
+      .replace(/(\b[\w.-]*(?:password|passwd|client_secret|api_key|secret_key|access_token|aws_secret_access_key|aws_session_token|stripe_secret_key|private_key)\b\s*[:=]\s*["']?)[^"'\s,;#}\]]+/ig, "$1[REDACTED]")
+      .replace(/(\bBearer\s+)[A-Za-z0-9._~-]{20,}/ig, "$1[REDACTED]")
+      .slice(0, 180);
   }
+  // Build stable GitHub links with path segments encoded separately.
+
   function sourceUrl(owner, repo, branch, path, line) {
-    const branchPath = String(branch || "main").split("/").map(encodeURIComponent).join("/");
-    const filePath = String(path || "").split("/").map(encodeURIComponent).join("/");
+    const branchPath = String(branch || "main")
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/");
+    const filePath = String(path || "")
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/");
     return "https://github.com/" + owner + "/" + repo + "/blob/" + branchPath + "/" + filePath + "#L" + line;
   }
+  // Inspect one file for credential, workflow, and suspicious-code patterns.
+
   function scanText(text, path, owner, repo, branch, findings) {
     const output = findings || [];
     const source = String(text);
@@ -180,9 +209,13 @@
     });
     return output;
   }
+  // Return exact dependency pins that can be queried against an advisory database.
+
   function parseDeps(path, text) {
     const out = [];
-    const base = String(path).split("/").pop().toLowerCase();
+    const base = String(path)
+      .split("/").pop()
+      .toLowerCase();
     const add = (name, version, ecosystem) => {
       if (name && /^\d+\.\d+\.\d+/.test(version)) out.push({
         name,
@@ -209,9 +242,11 @@
           walk(parsed.dependencies);
         }
       } else if (base.startsWith("requirements") && base.endsWith(".txt")) {
-        for (const line of String(text).split(/\r?\n/)) {
+        for (const line of String(text)
+          .split(/\r?\n/)) {
           const parts = line.split("==");
-          if (parts.length === 2) add(parts[0].trim(), parts[1].trim().split(";")[0].trim(), "PyPI");
+          if (parts.length === 2) add(parts[0].trim(), parts[1].trim()
+            .split(";")[0].trim(), "PyPI");
         }
       }
     } catch {}
