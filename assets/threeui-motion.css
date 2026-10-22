@@ -1,0 +1,11 @@
+/* ThreeUI-inspired depth treatment with no external animation runtime. */
+.ambient-field{position:fixed;inset:0;z-index:0;display:block;width:100%;height:100%;pointer-events:none;opacity:.7;contain:layout paint}
+.topbar,main,.footer{position:relative;z-index:1}
+body{isolation:isolate}
+.hero,.scan-panel,.metric-card,.feature-card{transform-style:preserve-3d}
+.scan-panel{box-shadow:0 24px 90px rgba(0,0,0,.25),inset 0 1px rgba(255,255,255,.025);transition:border-color .25s ease,box-shadow .25s ease}
+.scan-panel:hover{border-color:rgba(169,221,245,.42);box-shadow:0 28px 100px rgba(0,0,0,.32),0 0 40px rgba(92,163,220,.045)}
+.feature-card{transition:transform .24s ease,border-color .24s ease,background .24s ease}
+.feature-card:hover{transform:translateY(-4px) perspective(900px) rotateX(1deg);border-color:#53687d;background:#121a24}
+@media(max-width:640px){.ambient-field{opacity:.5}}
+@media(prefers-reduced-motion:reduce){.ambient-field{opacity:.28}.feature-card,.scan-panel{transition:none}.feature-card:hover{transform:none}}
