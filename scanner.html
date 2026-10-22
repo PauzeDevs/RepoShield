@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#05070b">
+  <meta name="description" content="RepoShield scans public GitHub repositories for exposed secrets, suspicious code, vulnerable dependencies, and risky GitHub Actions workflows.">
+  <meta property="og:title" content="RepoShield — GitHub Security Scanner">
+  <meta property="og:description" content="Understand repository security risks before they become incidents.">
+  <meta property="og:type" content="website">
+  <title>RepoShield — Repository Security Scanner</title>
+  <link rel="icon" href="assets/shield.svg" type="image/svg+xml">
+  <link rel="canonical" href="https://reposhield.devs.surf/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+  <link rel="stylesheet" href="assets/threeui-motion.css">
+  <script src="scanner-core.js" defer></script>
+  <script src="advanced-rules.js" defer></script>
+  <script src="browser-scan.js" defer></script>
+  <script src="assets/ambient-field.js" defer></script>
+  <script src="assets/threeui-interaction.js" defer></script>
+</head>
+<body>
+  <canvas id="ambient-field" class="ambient-field" aria-hidden="true"></canvas>
+  <div class="ambient ambient-one" aria-hidden="true"></div><div class="ambient ambient-two" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="RepoShield home"><span class="brand-mark"><img src="assets/shield.svg" alt=""></span><span>Repo<span class="brand-light">Shield</span><small>PAUZE.IS-A.DEV · SECURITY TOOLING</small></span></a>
+    <nav class="top-nav" aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="https://github.com/PauzeDevs/RepoShield" target="_blank" rel="noreferrer">Source <span aria-hidden="true">↗</span></a><a class="nav-pill" href="#scanner">Start a scan <span aria-hidden="true">↘</span></a></nav>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="eyebrow"><span class="pulse-dot"></span> REPOSITORY SECURITY INTELLIGENCE <span class="eyebrow-divider"></span><span>PUBLIC BETA</span></div>
+      <h1>Know what’s hiding<br>in your <span class="gradient-text">code.</span></h1>
+      <p class="hero-copy">Inspect a GitHub repository for exposed credentials, suspicious code patterns, vulnerable dependencies, and risky automation — with findings you can investigate and fix.</p>
+      <div class="trust-row"><span><i class="check-icon">✓</i> No code execution</span><span><i class="check-icon">✓</i> Evidence-based findings</span><span><i class="check-icon">✓</i> Public repositories</span></div>
+    </section>
+    <section id="scanner" class="scan-panel" aria-labelledby="scan-heading">
+      <div class="panel-top"><div><div class="section-kicker">01 / TARGET</div><h2 id="scan-heading">Scan a repository</h2></div><span class="mode-tag"><span class="mode-dot"></span> STATIC ANALYSIS</span></div>
+      <form id="scan-form" novalidate>
+        <label for="repo-url">GitHub repository URL</label>
+        <div class="input-row"><span class="input-glyph" aria-hidden="true">⌘</span><input id="repo-url" name="repo" type="url" inputmode="url" autocomplete="url" placeholder="https://github.com/owner/repository" maxlength="500" required><button id="scan-button" class="primary-button" type="submit"><span class="button-label">Analyze repository</span><span class="button-arrow" aria-hidden="true">↗</span></button></div>
+        <div class="input-help"><span>Try any public repository you trust or want to inspect.</span><span class="mono">GITHUB.COM ONLY</span></div>
+        <p id="scan-status" class="status-message" role="status" aria-live="polite"></p>
+      </form>
+      <div class="scan-boundary"><span class="boundary-icon">ⓘ</span><p>RepoShield reads source files and manifests only. It does not run repository code. Findings are signals for review, not a guarantee that a repository is safe or malicious.</p></div>
+    </section>
+    <section id="results" class="results-section" hidden aria-labelledby="results-heading">
+      <div class="results-heading"><div><div class="section-kicker">02 / ANALYSIS</div><h2 id="results-heading">Scan report</h2><p id="repo-meta" class="results-subtitle"></p></div><button id="export-report" class="secondary-button" type="button">Export JSON <span aria-hidden="true">↓</span></button></div>
+      <div id="scan-summary" class="summary-card"></div>
+      <div class="metrics-grid">
+        <article class="metric-card"><span class="metric-label">CRITICAL</span><strong id="count-critical">0</strong><span class="metric-note">Immediate review</span></article>
+        <article class="metric-card"><span class="metric-label">HIGH</span><strong id="count-high">0</strong><span class="metric-note">Prioritize these</span></article>
+        <article class="metric-card"><span class="metric-label">MEDIUM</span><strong id="count-medium">0</strong><span class="metric-note">Review context</span></article>
+        <article class="metric-card"><span class="metric-label">LOW / INFO</span><strong id="count-low">0</strong><span class="metric-note">Hardening signals</span></article>
+      </div>
+      <div class="findings-toolbar"><div><div class="section-kicker">FINDINGS</div><h3>What needs attention</h3></div><div class="filter-wrap"><label for="severity-filter">Severity</label><select id="severity-filter"><option value="all">All findings</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="info">Info</option></select></div></div>
+      <div id="findings-list" class="findings-list"></div>
+      <p class="report-footnote">A clean report is not proof of safety. Static analysis cannot detect every malware family, runtime behaviour, or vulnerability. Review important findings manually.</p>
+    </section>
+    <section id="how-it-works" class="how-section">
+      <div class="section-kicker">BUILT FOR DEVELOPERS</div><h2>Security signals, not scare tactics.</h2><p class="how-intro">RepoShield is designed to show its work. Each finding includes a reason, location when available, severity, and a practical next step.</p>
+      <div class="feature-grid">
+        <article class="feature-card"><div class="feature-icon icon-red">⌁</div><h3>Secret exposure</h3><p>Detect common credential patterns and redact matched values from results.</p><span>SECRET SCANNING</span></article>
+        <article class="feature-card"><div class="feature-icon icon-amber">⌘</div><h3>Suspicious code</h3><p>Flag potentially risky download-and-execute patterns and obfuscation indicators.</p><span>STATIC ANALYSIS</span></article>
+        <article class="feature-card"><div class="feature-icon icon-blue">◇</div><h3>Dependency risk</h3><p>Compare supported pinned dependency versions with published vulnerability advisories.</p><span>OSV DATABASE</span></article>
+        <article class="feature-card"><div class="feature-icon icon-green">⛨</div><h3>Workflow hardening</h3><p>Inspect GitHub Actions workflows for risky permissions and unsafe patterns.</p><span>CI/CD SECURITY</span></article>
+      </div>
+    </section>
+    <section class="method-note"><div class="method-symbol">i</div><div><strong>Responsible by design</strong><p>Only scan repositories you are authorized to inspect. RepoShield does not exploit findings, access private repositories without authorization, or execute scanned files. Scan availability may be limited by API quotas and resource caps.</p></div></section>
+  </main>
+  <footer class="footer"><a class="footer-brand" href="./">RepoShield</a><span>Built by PauzeX Developments</span><a href="https://github.com/PauzeDevs/RepoShield" target="_blank" rel="noreferrer">Open source repository ↗</a><span>© <span id="year"></span> · Security analysis is best-effort.</span></footer>
+</body>
+</html>
