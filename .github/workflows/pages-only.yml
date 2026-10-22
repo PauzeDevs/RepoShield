@@ -25,6 +25,7 @@ jobs:
           test -s scanner-core.js
           test -s tools/reposhield-ci.cjs
           test -s .github/workflows/reposhield-scan.yml
+          test -s .github/workflows/self-scan.yml
           test -s tests/scanner-core.test.cjs
           test -s assets/styles.css
           test -s assets/shield.svg
