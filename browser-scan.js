@@ -1,5 +1,6 @@
 (() => {
   "use strict";
+  // Keep DOM access in this file; scanner rules live in scanner-core.js.
   const $ = s => document.querySelector(s);
   const form = $("#scan-form"),
   input = $("#repo-url"),
@@ -14,28 +15,36 @@
   "medium",
   "low",
   "info"];
+
   function advisorySeverity(v) {
     const candidates = [v.database_specific?.severity,
     v.ecosystem_specific?.severity,
-    ...(v.severity || []).map(s => s.type === "CVSS_V3" || s.type === "CVSS_V4" ? s.score: "")].filter(Boolean).map(s => String(s).toUpperCase());
+    ...(v.severity || [])
+      .map(s => s.type === "CVSS_V3" || s.type === "CVSS_V4" ? s.score: "")].filter(Boolean)
+      .map(s => String(s)
+      .toUpperCase());
     for (const s of candidates) {
-      if (s.includes("CRITICAL"))return"critical";
-      if (s.includes("HIGH"))return"high";
-      if (s.includes("MODERATE") || s.includes("MEDIUM"))return"medium";
-      if (s.includes("LOW"))return"low"
+      if (s.includes("CRITICAL")) return "critical";
+      if (s.includes("HIGH")) return "high";
+      if (s.includes("MODERATE") || s.includes("MEDIUM")) return "medium";
+      if (s.includes("LOW")) return "low"
     }
-    return"medium"
+    return "medium"
   }
+
   function el(tag, cls, text) {
     const n = document.createElement(tag);
     if (cls) n.className = cls;
     if (text !== undefined) n.textContent = String(text);
     return n
   }
+
   function message(text, kind = "") {
     status.textContent = text;
     status.className = "status-message" + (kind ? " " + kind: "")
   }
+  // Restrict browser scans to a well-formed public GitHub repository URL.
+
   function validTarget(value) {
     let u;
     try {
@@ -43,9 +52,10 @@
     } catch {
       throw Error("Enter a valid GitHub repository URL.")
     }
-    if (u.protocol !== "https:" || u.hostname !== "github.com")throw Error("Only HTTPS GitHub repository URLs are supported.");
-    const p = u.pathname.split("/").filter(Boolean);
-    if (p.length !== 2)throw Error("Use https://github.com/owner/repository.");
+    if (u.protocol !== "https:" || u.hostname !== "github.com") throw Error("Only HTTPS GitHub repository URLs are supported.");
+    const p = u.pathname.split("/")
+      .filter(Boolean);
+    if (p.length !== 2) throw Error("Use https://github.com/owner/repository.");
     return {
       owner: p[0],
       repo: p[1].replace(/\.git$/i, ""),
@@ -61,23 +71,24 @@
       },
       cache: "no-store"
     });
-    if (r.status === 404)throw Error("Repository not found or not public.");
-    if (r.status === 403 || r.status === 429)throw Error("An API rate limit was reached. Wait and retry.");
-    if (!r.ok)throw Error("Source service returned HTTP " + r.status + ".");
+    if (r.status === 404) throw Error("Repository not found or not public.");
+    if (r.status === 403 || r.status === 429) throw Error("An API rate limit was reached. Wait and retry.");
+    if (!r.ok) throw Error("Source service returned HTTP " + r.status + ".");
     return r.json()
   }
   const {
     scanText,
     parseDeps
   } = window.RepoShieldScanner;
+  // Fetch repository metadata and source files without executing repository code.
   async function scan(t) {
-    if (!window.RepoShieldScanner || typeof scanText !== "function" || typeof parseDeps !== "function")throw Error("Scanner engine did not load. Refresh the page and try again.");
+    if (!window.RepoShieldScanner || typeof scanText !== "function" || typeof parseDeps !== "function") throw Error("Scanner engine did not load. Refresh the page and try again.");
     const meta = await getJson("https://api.github.com/repos/" + encodeURIComponent(t.owner) + "/" + encodeURIComponent(t.repo));
-    if (meta.private)throw Error("Only public repositories are supported.");
+    if (meta.private) throw Error("Only public repositories are supported.");
     const branch = meta.default_branch || "main";
     message("Reading repository file list…");
     const tree = await getJson("https://api.github.com/repos/" + encodeURIComponent(t.owner) + "/" + encodeURIComponent(t.repo) + "/git/trees/" + encodeURIComponent(branch) + "?recursive=1");
-    if (tree.truncated)throw Error("GitHub truncated this repository's file list; try a smaller repository.");
+    if (tree.truncated) throw Error("GitHub truncated this repository's file list; try a smaller repository.");
     const ignore = [".git",
     "node_modules",
     "vendor",
@@ -105,8 +116,15 @@
     "pem",
     "key",
     "crt"];
-    const eligibleFiles = (tree.tree || []).filter(f => f.type === "blob" && f.size > 0 && f.size < 250000 && !f.path.split("/").some(part => ignore.includes(part)) && (allowed.includes(f.path.split(".").pop().toLowerCase()) || ["package-lock.json", "requirements.txt"].includes(f.path.split("/").pop().toLowerCase())));
-    const oversizedFiles = (tree.tree || []).filter(f => f.type === "blob" && f.size >= 250000 && !f.path.split("/").some(part => ignore.includes(part)) && allowed.includes(f.path.split(".").pop().toLowerCase())).length;
+    const eligibleFiles = (tree.tree || [])
+      .filter(f => f.type === "blob" && f.size > 0 && f.size < 250000 && !f.path.split("/")
+      .some(part => ignore.includes(part)) && (allowed.includes(f.path.split(".").pop()
+      .toLowerCase()) || ["package-lock.json", "requirements.txt"].includes(f.path.split("/").pop()
+      .toLowerCase())));
+    const oversizedFiles = (tree.tree || [])
+      .filter(f => f.type === "blob" && f.size >= 250000 && !f.path.split("/")
+      .some(part => ignore.includes(part)) && allowed.includes(f.path.split(".").pop()
+      .toLowerCase())).length;
     const files = eligibleFiles.slice(0, 180);
     const findings = [],
     deps = [],
@@ -130,7 +148,11 @@
       }
       message("Inspecting files… " + (scanned + 1) + " / " + files.length);
       try {
-        const url = "https://raw.githubusercontent.com/" + t.owner + "/" + t.repo + "/" + branch.split("/").map(encodeURIComponent).join("/") + "/" + f.path.split("/").map(encodeURIComponent).join("/");
+        const url = "https://raw.githubusercontent.com/" + t.owner + "/" + t.repo + "/" + branch.split("/")
+          .map(encodeURIComponent)
+          .join("/") + "/" + f.path.split("/")
+          .map(encodeURIComponent)
+          .join("/");
         const res = await fetch(url, {
           cache: "no-store"
         });
@@ -170,7 +192,8 @@
             }))
           })
         });
-        data.results?.forEach((result, i) => (result.vulns || []).forEach(v => findings.push({
+        data.results?.forEach((result, i) => (result.vulns || [])
+          .forEach(v => findings.push({
           severity: advisorySeverity(v),
           category: "Dependency",
           title: unique[i].name + " " + unique[i].version + " — " + v.id,
@@ -199,8 +222,10 @@
       "Only public repositories and selected file formats are checked. API quotas and file caps limit coverage."]
     };
   }
+  // Render findings with DOM nodes and textContent instead of injecting HTML.
+
   function draw() {
-    if (!report)return;
+    if (!report) return;
     const findings = report.findings.filter(f => filter.value === "all" || f.severity === filter.value);
     list.replaceChildren();
     if (!findings.length) {
@@ -241,6 +266,8 @@
       list.append(card)
     }
   }
+  // Present the scan summary and keep the detailed list filterable.
+
   function show(r) {
     const c = r.counts,
     top = levels.find(s => c[s]) || "clean";
@@ -296,7 +323,7 @@
   });
   filter.addEventListener("change", draw);
   $("#export-report").addEventListener("click", () => {
-    if (!report)return;
+    if (!report) return;
     const blob = new Blob([JSON.stringify(report, null, 2)], {
       type: "application/json"
     }),
