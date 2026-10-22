@@ -30,11 +30,14 @@ jobs:
           test -s tests/scanner-core.test.cjs
           test -s tests/advanced-rules.test.cjs
           test -s assets/styles.css
+          test -s assets/threeui-motion.css
+          test -s assets/ambient-field.js
           test -s assets/shield.svg
           test -s CNAME
           test "$(tr -d '\r\n' < CNAME)" = "reposhield.devs.surf"
           node --check browser-scan.js
           node --check scanner-core.js
           node --check advanced-rules.js
+          node --check assets/ambient-field.js
           node --check tools/reposhield-ci.cjs
           node --test tests/scanner-core.test.cjs tests/advanced-rules.test.cjs
