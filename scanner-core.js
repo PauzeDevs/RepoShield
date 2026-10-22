@@ -40,7 +40,10 @@
 
   function scanText(text,path,owner,repo,branch,findings){
     const output=findings||[];
-    const lines=String(text).split(/\r?\n/);
+    const source=String(text);
+    const lines=source.split(/\r?\n/);
+    const isWorkflowFile=String(path).startsWith(".github/workflows/");
+    const hasPullRequestTarget=isWorkflowFile&&/\bpull_request_target\s*:/i.test(source);
     lines.forEach((line,index)=>{
       let title="",severity="high",category="Secret";
       const privateKey=line.match(/-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----/i);
@@ -80,6 +83,9 @@
       }
       if(isWorkflow&&/\bpull_request_target\s*:/i.test(line)){
         output.push({severity:"high",category:"Workflow",title:"Privileged pull_request_target trigger",description:"This event can run with base-repository privileges. Checking out or executing untrusted pull-request content in the same workflow can expose secrets or write permissions.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Avoid checking out or executing pull-request head code in this privileged workflow. Prefer pull_request for untrusted validation and keep permissions minimal.",source_url:sourceUrl(owner,repo,branch,path,index+1)});
+      }
+      if(hasPullRequestTarget&&/\bref\s*:\s*\$\{\{\s*github\.event\.pull_request\.head\.(?:sha|ref)\s*\}\}/i.test(line)){
+        output.push({severity:"critical",category:"Workflow",title:"Untrusted pull request checked out by privileged workflow",description:"This workflow uses pull_request_target and checks out a pull-request head ref. Untrusted code may then run with access to base-repository secrets or write permissions.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Do not check out or execute pull-request head code in a pull_request_target workflow. Use pull_request for untrusted validation, or isolate any required processing in a least-privilege environment without secrets.",source_url:sourceUrl(owner,repo,branch,path,index+1)});
       }
       if(isWorkflow&&/\buses\s*:\s*[^\s#]+@(?:main|master|v?\d+(?:\.\d+){0,2})\s*(?:#.*)?$/i.test(line.trim())){
         output.push({severity:"medium",category:"Workflow",title:"Action uses a mutable reference",description:"A branch or version tag can move, so the action code may change without a reviewed workflow diff.",file:path,line:index+1,evidence:redactEvidence(line),remediation:"Pin third-party actions to a verified full commit SHA and update pins deliberately.",source_url:sourceUrl(owner,repo,branch,path,index+1)});
