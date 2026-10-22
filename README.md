@@ -18,6 +18,7 @@
   <a href="https://github.com/PauzeDevs/RepoShield/actions/workflows/self-scan.yml"><img src="https://img.shields.io/github/actions/workflow/status/PauzeDevs/RepoShield/self-scan.yml?branch=main&style=flat-square&label=RepoShield%20self-scan" alt="RepoShield self-scan status"></a>
   <a href="https://github.com/PauzeDevs/RepoShield/stargazers"><img src="https://img.shields.io/github/stars/PauzeDevs/RepoShield?style=flat-square&label=Stars" alt="GitHub stars"></a>
   <a href="https://github.com/PauzeDevs/RepoShield/commits/main"><img src="https://img.shields.io/github/last-commit/PauzeDevs/RepoShield?style=flat-square&label=Last%20commit" alt="Last commit"></a>
+  <a href="https://github.com/PauzeDevs/RepoShield/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg?style=flat-square" alt="GNU Affero General Public License v3.0 only"></a>
 </p>
 
 <p align="center">
@@ -112,6 +113,10 @@ RepoShield is a bounded static scanner, not an antivirus tool or proof that a re
 - Depends on GitHub and OSV availability and rate limits; incomplete coverage is surfaced as a warning.
 
 Findings can be false positives, and a clean scan can miss vulnerabilities. Review results and advisories before making security decisions. If a real credential is exposed, revoke or rotate it and consider removing it from Git history.
+
+## License
+
+RepoShield is licensed under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. See [`LICENSE`](LICENSE) for the complete license text. In brief, this is a strong copyleft license: if you distribute modified versions, or make a modified version available for users to interact with over a network, the license has source-code disclosure requirements. Review the full license to understand the exact obligations before reusing or deploying modified versions.
 
 ## Maintained by
 
