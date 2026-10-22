@@ -1,133 +1,92 @@
 (() => {
   "use strict";
-
   const canvas = document.querySelector("#ambient-field");
   if (!canvas) return;
-
-  const context = canvas.getContext("2d", { alpha: true });
-  if (!context) return;
-
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const pointer = { x: -1000, y: -1000 };
-  let width = 0;
-  let height = 0;
-  let frame = 0;
-  let points = [];
-  let running = true;
-
-  const palette = [
-    "rgba(58, 157, 255, ",
-    "rgba(75, 220, 255, ",
-    "rgba(135, 160, 255, "
-  ];
-
-  function createPoints() {
-    const area = width * height;
-    const count = Math.max(24, Math.min(78, Math.round(area / 19000)));
-
-    points = Array.from({ length: count }, (_, index) => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      radius: 0.7 + Math.random() * 1.4,
-      speedX: (Math.random() - 0.5) * 0.16,
-      speedY: (Math.random() - 0.5) * 0.16,
-      phase: Math.random() * Math.PI * 2,
-      color: palette[index % palette.length]
-    }));
-  }
+  const ctx = canvas.getContext("2d", { alpha: true });
+  if (!ctx) return;
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const pointer = { x: 0, y: 0, active: false };
+  let width = 1, height = 1, ratio = 1, frame = 0, lastFrame = 0, nodes = [];
+  const colors = ["#a9ddf5", "#73b8ff", "#b4c9ff"];
 
   function resize() {
-    const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
-    width = window.innerWidth;
-    height = window.innerHeight;
+    ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+    width = Math.max(1, window.innerWidth);
+    height = Math.max(1, window.innerHeight);
     canvas.width = Math.round(width * ratio);
     canvas.height = Math.round(height * ratio);
     canvas.style.width = width + "px";
     canvas.style.height = height + "px";
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    createPoints();
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    const count = Math.max(28, Math.min(64, Math.round(width * height / 18000)));
+    nodes = Array.from({ length: count }, (_, i) => ({
+      x: Math.random() * width, y: Math.random() * height,
+      z: .25 + Math.random() * .75, radius: .6 + Math.random(),
+      phase: Math.random() * Math.PI * 2, drift: .08 + Math.random() * .16,
+      color: colors[i % colors.length]
+    }));
     draw(0, true);
   }
 
-  function draw(time, staticFrame = false) {
-    context.clearRect(0, 0, width, height);
-    const linkDistance = width < 640 ? 105 : 145;
-    const timeFactor = staticFrame || reducedMotion.matches ? 0 : time * 0.00025;
-
-    for (const point of points) {
-      if (!staticFrame && !reducedMotion.matches) {
-        point.x += point.speedX;
-        point.y += point.speedY;
-
-        if (point.x < -12) point.x = width + 12;
-        if (point.x > width + 12) point.x = -12;
-        if (point.y < -12) point.y = height + 12;
-        if (point.y > height + 12) point.y = -12;
-      }
-
-      const pulse = 0.42 + (Math.sin(timeFactor + point.phase) + 1) * 0.18;
-      const dx = point.x - pointer.x;
-      const dy = point.y - pointer.y;
-      const distanceToPointer = Math.hypot(dx, dy);
-      const glow = distanceToPointer < 180 ? 0.22 * (1 - distanceToPointer / 180) : 0;
-
-      context.beginPath();
-      context.fillStyle = point.color + Math.min(0.85, pulse + glow) + ")";
-      context.arc(point.x, point.y, point.radius + glow * 2, 0, Math.PI * 2);
-      context.fill();
+  function draw(time, still = false) {
+    ctx.clearRect(0, 0, width, height);
+    const centerX = width / 2 + (pointer.active ? (pointer.x - width / 2) * .025 : 0);
+    const centerY = height * .47 + (pointer.active ? (pointer.y - height / 2) * .02 : 0);
+    const t = still || reduced.matches ? 0 : time * .00022;
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.transform(1, 0, .16, .48, 0, 0);
+    const horizon = -height * .1;
+    for (let i = 0; i <= 13; i++) {
+      const y = horizon + i * i * 2.15;
+      if (y > height * 1.2) break;
+      ctx.strokeStyle = "rgba(111,177,235," + Math.min(.11, .012 + i * .006) + ")";
+      ctx.lineWidth = .7;
+      ctx.beginPath(); ctx.moveTo(-width, y); ctx.lineTo(width, y); ctx.stroke();
     }
+    for (let i = -14; i <= 14; i++) {
+      ctx.strokeStyle = "rgba(111,177,235,.045)";
+      ctx.beginPath(); ctx.moveTo(i * 54, horizon); ctx.lineTo(i * 118, height * 1.3); ctx.stroke();
+    }
+    ctx.restore();
 
-    for (let index = 0; index < points.length; index++) {
-      const point = points[index];
-      for (let nextIndex = index + 1; nextIndex < points.length; nextIndex++) {
-        const next = points[nextIndex];
-        const distance = Math.hypot(point.x - next.x, point.y - next.y);
-        if (distance >= linkDistance) continue;
-
-        const opacity = (1 - distance / linkDistance) * 0.17;
-        context.beginPath();
-        context.strokeStyle = "rgba(83, 157, 235, " + opacity + ")";
-        context.lineWidth = 0.7;
-        context.moveTo(point.x, point.y);
-        context.lineTo(next.x, next.y);
-        context.stroke();
+    for (const node of nodes) {
+      if (!still && !reduced.matches) {
+        node.y -= node.drift * node.z;
+        node.x += Math.sin(t + node.phase) * .08;
+        if (node.y < -10) { node.y = height + 10; node.x = Math.random() * width; }
       }
+      const x = node.x + (pointer.active ? (pointer.x - width / 2) * node.z * .012 : 0);
+      const y = node.y + Math.sin(t + node.phase) * 7 * node.z;
+      const glow = pointer.active ? Math.max(0, 1 - Math.hypot(pointer.x - x, pointer.y - y) / 190) : 0;
+      ctx.beginPath(); ctx.fillStyle = node.color;
+      ctx.globalAlpha = .22 + node.z * .35 + glow * .3;
+      ctx.arc(x, y, node.radius + glow * 1.4, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+    }
+    const maxLink = width < 640 ? 82 : 120;
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[j], distance = Math.hypot(a.x - b.x, a.y - b.y);
+      if (distance > maxLink) continue;
+      ctx.strokeStyle = "rgba(123,184,238," + ((1 - distance / maxLink) * .095) + ")";
+      ctx.lineWidth = .6; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
     }
   }
 
   function animate(time) {
-    if (!running) return;
-    draw(time);
-    if (!reducedMotion.matches) frame = window.requestAnimationFrame(animate);
+    if (document.hidden || reduced.matches) return;
+    if (time - lastFrame > 28) { draw(time); lastFrame = time; }
+    frame = requestAnimationFrame(animate);
   }
-
   function start() {
-    window.cancelAnimationFrame(frame);
-    if (reducedMotion.matches) {
-      draw(0, true);
-      return;
-    }
-    running = true;
-    frame = window.requestAnimationFrame(animate);
+    cancelAnimationFrame(frame);
+    draw(0, reduced.matches);
+    if (!reduced.matches && !document.hidden) frame = requestAnimationFrame(animate);
   }
-
   canvas.setAttribute("aria-hidden", "true");
   window.addEventListener("resize", resize, { passive: true });
-  window.addEventListener("pointermove", event => {
-    pointer.x = event.clientX;
-    pointer.y = event.clientY;
-  }, { passive: true });
-  window.addEventListener("pointerleave", () => {
-    pointer.x = -1000;
-    pointer.y = -1000;
-  }, { passive: true });
-  document.addEventListener("visibilitychange", () => {
-    running = !document.hidden;
-    if (running) start();
-    else window.cancelAnimationFrame(frame);
-  });
-  reducedMotion.addEventListener?.("change", start);
-
-  resize();
-  start();
+  window.addEventListener("pointermove", event => { pointer.x = event.clientX; pointer.y = event.clientY; pointer.active = true; }, { passive: true });
+  window.addEventListener("pointerleave", () => { pointer.active = false; }, { passive: true });
+  document.addEventListener("visibilitychange", start);
+  reduced.addEventListener?.("change", start);
+  resize(); start();
 })();
